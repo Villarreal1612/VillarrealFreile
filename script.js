@@ -261,6 +261,63 @@ function mostrarLlenarRelacion() {
 // Variables para almacenamiento
 let suenos = JSON.parse(localStorage.getItem('suenos')) || [];
 let fotos = JSON.parse(localStorage.getItem('fotos')) || [];
+let supabaseActivo = false;
+
+// Verificar si Supabase está disponible
+function verificarSupabase() {
+    if (typeof initSupabase === 'function') {
+        supabaseActivo = initSupabase();
+        if (supabaseActivo) {
+            console.log('Supabase conectado - Sincronización habilitada');
+            cargarDatosDesdeSupabase();
+        } else {
+            console.log('Usando localStorage - Sin sincronización');
+        }
+    } else {
+        console.log('Supabase no disponible - Usando localStorage');
+    }
+}
+
+// Cargar datos desde Supabase
+async function cargarDatosDesdeSupabase() {
+    if (!supabaseActivo) return;
+    
+    try {
+        // Cargar sueños
+        const suenosSupabase = await obtenerSuenosSupabase();
+        if (suenosSupabase.length > 0) {
+            suenos = suenosSupabase.map(s => ({
+                texto: s.texto,
+                fecha: formatearFecha(new Date(s.created_at)),
+                cumplido: s.cumplido,
+                fechaCumplido: s.cumplido ? formatearFecha(new Date(s.created_at)) : null,
+                id: s.id
+            }));
+            localStorage.setItem('suenos', JSON.stringify(suenos));
+        }
+        
+        // Cargar fotos
+        const fotosSupabase = await obtenerFotosSupabase();
+        if (fotosSupabase.length > 0) {
+            fotos = fotosSupabase.map(f => ({
+                nombre: f.nombre,
+                url: f.url,
+                fecha: formatearFecha(new Date(f.created_at)),
+                tipo: f.tipo,
+                id: f.id
+            }));
+            localStorage.setItem('fotos', JSON.stringify(fotos));
+        }
+        
+        // Actualizar interfaz
+        cargarSuenos();
+        actualizarGaleria();
+        
+    } catch (error) {
+        console.error('Error al cargar datos de Supabase:', error);
+        mostrarNotificacion('Error al sincronizar datos', 'error');
+    }
+}
 
 // Función para cargar sueños
 function cargarSuenos() {
@@ -296,7 +353,7 @@ function cargarSuenos() {
 }
 
 // Función para agregar un nuevo sueño
-function agregarSueno() {
+async function agregarSueno() {
     const textoSueno = document.getElementById('input-sueno').value.trim();
     
     if (textoSueno === '') {
@@ -311,17 +368,38 @@ function agregarSueno() {
         fechaCumplido: null
     };
     
-    // Agregar al array y guardar en localStorage
-    suenos.push(nuevoSueno);
-    localStorage.setItem('suenos', JSON.stringify(suenos));
-    
-    document.getElementById('input-sueno').value = '';
-    mostrarNotificacion('¡Sueño agregado exitosamente!');
-    cargarSuenos();
+    try {
+        // Intentar guardar en Supabase primero
+        if (supabaseActivo) {
+            const resultado = await agregarSuenoSupabase(textoSueno);
+            if (resultado) {
+                nuevoSueno.id = resultado.id;
+                mostrarNotificacion('¡Sueño agregado y sincronizado!');
+            } else {
+                mostrarNotificacion('Sueño agregado localmente (sin sincronizar)', 'warning');
+            }
+        }
+        
+        // Agregar al array local y guardar en localStorage
+        suenos.push(nuevoSueno);
+        localStorage.setItem('suenos', JSON.stringify(suenos));
+        
+        document.getElementById('input-sueno').value = '';
+        cargarSuenos();
+        
+    } catch (error) {
+        console.error('Error al agregar sueño:', error);
+        // Guardar solo localmente si falla Supabase
+        suenos.push(nuevoSueno);
+        localStorage.setItem('suenos', JSON.stringify(suenos));
+        document.getElementById('input-sueno').value = '';
+        mostrarNotificacion('Sueño agregado localmente (error de sincronización)', 'warning');
+        cargarSuenos();
+    }
 }
 
 // Función para manejar la subida de archivos
-function manejarSubidaArchivo(event) {
+async function manejarSubidaArchivo(event) {
     const archivos = event.target.files;
     
     if (archivos.length === 0) {
@@ -341,15 +419,32 @@ function manejarSubidaArchivo(event) {
             continue;
         }
         
-        // Usar FileReader para convertir a base64
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const nuevaFoto = {
-                src: e.target.result,
-                tipo: archivo.type.startsWith('image/') ? 'imagen' : 'video',
-                fecha: new Date().toLocaleDateString('es-ES'),
-                nombre: archivo.name
-            };
+        let nuevaFoto = {
+            tipo: archivo.type.startsWith('image/') ? 'imagen' : 'video',
+            fecha: new Date().toLocaleDateString('es-ES'),
+            nombre: archivo.name
+        };
+        
+        try {
+            // Intentar subir a Supabase Storage primero
+            if (supabaseActivo) {
+                const resultado = await subirArchivoSupabase(archivo);
+                if (resultado && resultado.url) {
+                    nuevaFoto.src = resultado.url;
+                    nuevaFoto.url = resultado.url;
+                    nuevaFoto.id = resultado.id;
+                    mostrarNotificacion(`${archivo.name} subido y sincronizado`);
+                } else {
+                    // Fallback a base64 si falla Supabase
+                    const base64 = await convertirArchivoABase64(archivo);
+                    nuevaFoto.src = base64;
+                    mostrarNotificacion(`${archivo.name} guardado localmente (sin sincronizar)`, 'warning');
+                }
+            } else {
+                // Usar base64 si Supabase no está disponible
+                const base64 = await convertirArchivoABase64(archivo);
+                nuevaFoto.src = base64;
+            }
             
             fotos.push(nuevaFoto);
             localStorage.setItem('fotos', JSON.stringify(fotos));
@@ -372,17 +467,29 @@ function manejarSubidaArchivo(event) {
             
             previewContainer.appendChild(previewItem);
             
-            // Actualizar la galería después de cada archivo
-            actualizarGaleria();
-        };
-        
-        reader.readAsDataURL(archivo);
+        } catch (error) {
+            console.error('Error al procesar archivo:', error);
+            // Fallback a base64 en caso de error
+            const base64 = await convertirArchivoABase64(archivo);
+            nuevaFoto.src = base64;
+            fotos.push(nuevaFoto);
+            localStorage.setItem('fotos', JSON.stringify(fotos));
+            mostrarNotificacion(`${archivo.name} guardado localmente (error de sincronización)`, 'warning');
+        }
     }
     
-    mostrarNotificacion('¡Archivos procesados exitosamente!');
-    
-    // Limpiar el input
-    event.target.value = '';
+    actualizarGaleria();
+    mostrarNotificacion('Archivos procesados exitosamente!');
+}
+
+// Función auxiliar para convertir archivo a base64
+function convertirArchivoABase64(archivo) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(archivo);
+    });
 }
 
 // Función para actualizar la galería con nuevas fotos
@@ -619,34 +726,83 @@ function eliminarFoto(index) {
         document.body.removeChild(modalConfirmacion);
     };
     
-    window.confirmarEliminacion = function(idx) {
-        // Eliminar directamente de localStorage
-        fotos.splice(idx, 1);
-        localStorage.setItem('fotos', JSON.stringify(fotos));
-        mostrarNotificacion('Foto/video eliminado exitosamente.');
-        
-        actualizarGaleria();
-        cerrarModal();
+    window.confirmarEliminacion = async function(idx) {
+        try {
+            // Intentar eliminar de Supabase primero
+            if (supabaseActivo && fotos[idx].id) {
+                const resultado = await eliminarFotoSupabase(fotos[idx].id);
+                if (resultado) {
+                    mostrarNotificacion('Foto/video eliminado y sincronizado.');
+                } else {
+                    mostrarNotificacion('Foto/video eliminado localmente (sin sincronizar)', 'warning');
+                }
+            }
+            
+            // Eliminar de localStorage
+            fotos.splice(idx, 1);
+            localStorage.setItem('fotos', JSON.stringify(fotos));
+            
+            if (!supabaseActivo) {
+                mostrarNotificacion('Foto/video eliminado exitosamente.');
+            }
+            
+            actualizarGaleria();
+            cerrarModal();
+            
+        } catch (error) {
+            console.error('Error al eliminar foto:', error);
+            // Eliminar solo localmente si falla Supabase
+            fotos.splice(idx, 1);
+            localStorage.setItem('fotos', JSON.stringify(fotos));
+            mostrarNotificacion('Foto/video eliminado localmente (error de sincronización)', 'warning');
+            actualizarGaleria();
+            cerrarModal();
+        }
         
         document.body.removeChild(modalConfirmacion);
     };
 }
 
 // Función para marcar sueños como cumplidos
-function marcarSuenoCumplido(index) {
+async function marcarSuenoCumplido(index) {
     const nuevoEstado = !suenos[index].cumplido;
     const fechaCumplido = nuevoEstado ? new Date().toLocaleDateString() : null;
     
-    suenos[index].cumplido = nuevoEstado;
-    suenos[index].fechaCumplido = fechaCumplido;
-    
-    // Guardar en localStorage
-    localStorage.setItem('suenos', JSON.stringify(suenos));
-    
-    cargarSuenos();
-    
-    const mensaje = nuevoEstado ? '¡Sueño marcado como cumplido!' : 'Sueño desmarcado';
-    mostrarNotificacion(mensaje);
+    try {
+        // Intentar actualizar en Supabase primero
+        if (supabaseActivo && suenos[index].id) {
+            const resultado = await actualizarSuenoSupabase(suenos[index].id, nuevoEstado);
+            if (resultado) {
+                const mensaje = nuevoEstado ? '¡Sueño marcado como cumplido y sincronizado!' : 'Sueño desmarcado y sincronizado';
+                mostrarNotificacion(mensaje);
+            } else {
+                mostrarNotificacion('Estado actualizado localmente (sin sincronizar)', 'warning');
+            }
+        }
+        
+        // Actualizar localmente
+        suenos[index].cumplido = nuevoEstado;
+        suenos[index].fechaCumplido = fechaCumplido;
+        
+        // Guardar en localStorage
+        localStorage.setItem('suenos', JSON.stringify(suenos));
+        
+        cargarSuenos();
+        
+        if (!supabaseActivo) {
+            const mensaje = nuevoEstado ? '¡Sueño marcado como cumplido!' : 'Sueño desmarcado';
+            mostrarNotificacion(mensaje);
+        }
+        
+    } catch (error) {
+        console.error('Error al actualizar sueño:', error);
+        // Actualizar solo localmente si falla Supabase
+        suenos[index].cumplido = nuevoEstado;
+        suenos[index].fechaCumplido = fechaCumplido;
+        localStorage.setItem('suenos', JSON.stringify(suenos));
+        cargarSuenos();
+        mostrarNotificacion('Estado actualizado localmente (error de sincronización)', 'warning');
+    }
 }
 
 // Función para formatear fecha
@@ -660,6 +816,9 @@ function formatearFecha(fecha) {
 
 // Inicializar la paginación cuando se carga la página
 window.addEventListener('load', function() {
+    // Verificar y configurar Supabase
+    verificarSupabase();
+    
     actualizarBotonesPaginacion();
     cargarSuenos();
     actualizarGaleria();
