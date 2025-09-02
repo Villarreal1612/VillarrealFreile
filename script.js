@@ -302,8 +302,9 @@ async function cargarDatosDesdeSupabase() {
             fotos = fotosSupabase.map(f => ({
                 nombre: f.nombre,
                 url: f.url,
+                src: f.url, // Agregar src para compatibilidad con la galería
                 fecha: formatearFecha(new Date(f.created_at)),
-                tipo: f.tipo,
+                tipo: f.tipo === 'video' ? 'video' : 'imagen', // Mapear tipo correctamente
                 id: f.id
             }));
             localStorage.setItem('fotos', JSON.stringify(fotos));
@@ -428,11 +429,16 @@ async function manejarSubidaArchivo(event) {
         try {
             // Intentar subir a Supabase Storage primero
             if (supabaseActivo) {
-                const resultado = await subirArchivoSupabase(archivo);
+                // Generar nombre único para el archivo
+                const timestamp = Date.now();
+                const fileName = `${timestamp}_${archivo.name}`;
+                
+                const resultado = await subirFotoSupabase(archivo, fileName);
                 if (resultado && resultado.url) {
                     nuevaFoto.src = resultado.url;
                     nuevaFoto.url = resultado.url;
                     nuevaFoto.id = resultado.id;
+                    nuevaFoto.nombre = fileName; // Guardar el nombre con timestamp
                     mostrarNotificacion(`${archivo.name} subido y sincronizado`);
                 } else {
                     // Fallback a base64 si falla Supabase
@@ -729,8 +735,8 @@ function eliminarFoto(index) {
     window.confirmarEliminacion = async function(idx) {
         try {
             // Intentar eliminar de Supabase primero
-            if (supabaseActivo && fotos[idx].id) {
-                const resultado = await eliminarFotoSupabase(fotos[idx].id);
+            if (supabaseActivo && fotos[idx].id && fotos[idx].nombre) {
+                const resultado = await eliminarFotoSupabase(fotos[idx].id, fotos[idx].nombre);
                 if (resultado) {
                     mostrarNotificacion('Foto/video eliminado y sincronizado.');
                 } else {
