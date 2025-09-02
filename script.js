@@ -265,27 +265,73 @@ let supabaseActivo = false;
 
 // Verificar si Supabase está disponible
 function verificarSupabase() {
+    console.log('🔍 Verificando disponibilidad de Supabase...');
+    
     if (typeof initSupabase === 'function') {
         supabaseActivo = initSupabase();
         if (supabaseActivo) {
-            console.log('Supabase conectado - Sincronización habilitada');
+            console.log('✅ Supabase conectado - Sincronización habilitada');
+            // Verificar que todas las funciones estén disponibles
+            const funcionesRequeridas = [
+                'obtenerSuenosSupabase',
+                'obtenerFotosSupabase', 
+                'subirFotoSupabase',
+                'agregarSuenoSupabase',
+                'eliminarFotoSupabase'
+            ];
+            
+            const funcionesFaltantes = funcionesRequeridas.filter(fn => typeof window[fn] !== 'function');
+            if (funcionesFaltantes.length > 0) {
+                console.warn('⚠️ Funciones de Supabase faltantes:', funcionesFaltantes);
+            } else {
+                console.log('✅ Todas las funciones de Supabase disponibles');
+            }
+            
             cargarDatosDesdeSupabase();
         } else {
-            console.log('Usando localStorage - Sin sincronización');
+            console.log('⚠️ Usando localStorage - Sin sincronización');
         }
     } else {
-        console.log('Supabase no disponible - Usando localStorage');
+        console.log('❌ Supabase no disponible - Usando localStorage');
     }
 }
 
-// Cargar datos desde Supabase
+// Función para forzar sincronización manual
+async function forzarSincronizacion() {
+    if (!supabaseActivo) {
+        mostrarNotificacion('Supabase no está activo', 'warning');
+        return;
+    }
+    
+    mostrarNotificacion('Sincronizando datos...', 'info');
+    await cargarDatosDesdeSupabase();
+    mostrarNotificacion('Sincronización completada', 'success');
+}
+
+// Exportar función para uso en consola
+window.forzarSincronizacion = forzarSincronizacion;
+
+// Sincronizar datos bidireccional entre localStorage y Supabase
 async function cargarDatosDesdeSupabase() {
     if (!supabaseActivo) return;
     
     try {
-        // Cargar sueños
+        console.log('🔄 Iniciando sincronización bidireccional...');
+        
+        // Obtener datos de Supabase
         const suenosSupabase = await obtenerSuenosSupabase();
-        if (suenosSupabase.length > 0) {
+        const fotosSupabase = await obtenerFotosSupabase();
+        
+        console.log(`📊 Datos en Supabase: ${suenosSupabase.length} sueños, ${fotosSupabase.length} fotos`);
+        
+        // Obtener datos locales
+        const suenosLocal = JSON.parse(localStorage.getItem('suenos')) || [];
+        const fotosLocal = JSON.parse(localStorage.getItem('fotos')) || [];
+        
+        console.log(`💾 Datos locales: ${suenosLocal.length} sueños, ${fotosLocal.length} fotos`);
+        
+        // Sincronizar sueños: priorizar Supabase si tiene más datos
+        if (suenosSupabase.length >= suenosLocal.length) {
             suenos = suenosSupabase.map(s => ({
                 texto: s.texto,
                 fecha: formatearFecha(new Date(s.created_at)),
@@ -294,11 +340,15 @@ async function cargarDatosDesdeSupabase() {
                 id: s.id
             }));
             localStorage.setItem('suenos', JSON.stringify(suenos));
+            console.log('✅ Sueños sincronizados desde Supabase');
+        } else {
+            // Mantener datos locales si tiene más contenido
+            suenos = suenosLocal;
+            console.log('📱 Manteniendo sueños locales (más recientes)');
         }
         
-        // Cargar fotos
-        const fotosSupabase = await obtenerFotosSupabase();
-        if (fotosSupabase.length > 0) {
+        // Sincronizar fotos: priorizar Supabase si tiene más datos
+        if (fotosSupabase.length >= fotosLocal.length) {
             fotos = fotosSupabase.map(f => ({
                 nombre: f.nombre,
                 url: f.url,
@@ -308,15 +358,30 @@ async function cargarDatosDesdeSupabase() {
                 id: f.id
             }));
             localStorage.setItem('fotos', JSON.stringify(fotos));
+            console.log('✅ Fotos sincronizadas desde Supabase');
+        } else {
+            // Mantener datos locales si tiene más contenido
+            fotos = fotosLocal;
+            console.log('📱 Manteniendo fotos locales (más recientes)');
         }
         
         // Actualizar interfaz
         cargarSuenos();
         actualizarGaleria();
         
+        console.log('🎉 Sincronización completada');
+        
     } catch (error) {
-        console.error('Error al cargar datos de Supabase:', error);
+        console.error('❌ Error al sincronizar datos:', error);
         mostrarNotificacion('Error al sincronizar datos', 'error');
+        
+        // Fallback: usar datos locales si falla la sincronización
+        const suenosLocal = JSON.parse(localStorage.getItem('suenos')) || [];
+        const fotosLocal = JSON.parse(localStorage.getItem('fotos')) || [];
+        suenos = suenosLocal;
+        fotos = fotosLocal;
+        cargarSuenos();
+        actualizarGaleria();
     }
 }
 
