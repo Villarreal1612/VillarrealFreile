@@ -258,9 +258,9 @@ function mostrarLlenarRelacion() {
     seccionLlenarRelacion.style.display = 'block';
 }
 
-// Variables para almacenamiento (ahora manejadas por firebase-config.js)
-// let suenos = []; // Definido en firebase-config.js
-// let fotos = []; // Definido en firebase-config.js
+// Variables para almacenamiento
+let suenos = JSON.parse(localStorage.getItem('suenos')) || [];
+let fotos = JSON.parse(localStorage.getItem('fotos')) || [];
 
 // Función para cargar sueños
 function cargarSuenos() {
@@ -296,7 +296,7 @@ function cargarSuenos() {
 }
 
 // Función para agregar un nuevo sueño
-async function agregarSueno() {
+function agregarSueno() {
     const textoSueno = document.getElementById('input-sueno').value.trim();
     
     if (textoSueno === '') {
@@ -311,22 +311,17 @@ async function agregarSueno() {
         fechaCumplido: null
     };
     
-    // Usar Firebase para agregar el sueño
-    const exito = await agregarSuenoFirebase(nuevoSueno);
+    // Agregar al array y guardar en localStorage
+    suenos.push(nuevoSueno);
+    localStorage.setItem('suenos', JSON.stringify(suenos));
     
     document.getElementById('input-sueno').value = '';
-    
-    if (exito) {
-        mostrarNotificacion('¡Sueño agregado exitosamente!');
-    } else {
-        mostrarNotificacion('Sueño guardado localmente (sin conexión)', 'warning');
-    }
-    
+    mostrarNotificacion('¡Sueño agregado exitosamente!');
     cargarSuenos();
 }
 
 // Función para manejar la subida de archivos
-async function manejarSubidaArchivo(event) {
+function manejarSubidaArchivo(event) {
     const archivos = event.target.files;
     
     if (archivos.length === 0) {
@@ -336,7 +331,7 @@ async function manejarSubidaArchivo(event) {
     const previewContainer = document.getElementById('preview-multimedia');
     previewContainer.innerHTML = '';
     
-    mostrarNotificacion('Subiendo archivos...', 'info');
+    mostrarNotificacion('Procesando archivos...', 'info');
     
     for (const archivo of archivos) {
         // Verificar que sea imagen o video
@@ -346,20 +341,18 @@ async function manejarSubidaArchivo(event) {
             continue;
         }
         
-        try {
-            // Subir archivo a Firebase Storage
-            const archivoSubido = await subirArchivoFirebase(archivo);
-            
+        // Usar FileReader para convertir a base64
+        const reader = new FileReader();
+        reader.onload = function(e) {
             const nuevaFoto = {
-                src: archivoSubido.url,
+                src: e.target.result,
                 tipo: archivo.type.startsWith('image/') ? 'imagen' : 'video',
                 fecha: new Date().toLocaleDateString('es-ES'),
-                nombre: archivoSubido.nombre,
-                nombreOriginal: archivoSubido.nombreOriginal
+                nombre: archivo.name
             };
             
-            // Agregar a Firebase Firestore
-            const exito = await agregarFotoFirebase(nuevaFoto);
+            fotos.push(nuevaFoto);
+            localStorage.setItem('fotos', JSON.stringify(fotos));
             
             // Mostrar preview
             const previewItem = document.createElement('div');
@@ -379,48 +372,13 @@ async function manejarSubidaArchivo(event) {
             
             previewContainer.appendChild(previewItem);
             
-        } catch (error) {
-            console.error('Error al subir archivo:', error);
-            
-            // Fallback a localStorage con FileReader
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const nuevaFoto = {
-                    src: e.target.result,
-                    tipo: archivo.type.startsWith('image/') ? 'imagen' : 'video',
-                    fecha: new Date().toLocaleDateString('es-ES'),
-                    nombre: archivo.name
-                };
-                
-                fotos.push(nuevaFoto);
-                localStorage.setItem('fotos', JSON.stringify(fotos));
-                
-                // Mostrar preview
-                const previewItem = document.createElement('div');
-                previewItem.className = 'preview-item';
-                
-                if (nuevaFoto.tipo === 'imagen') {
-                    previewItem.innerHTML = `
-                        <img src="${nuevaFoto.src}" alt="Preview">
-                        <span class="preview-name">${archivo.name}</span>
-                    `;
-                } else {
-                    previewItem.innerHTML = `
-                        <video src="${nuevaFoto.src}" controls preload="metadata"></video>
-                        <span class="preview-name">${archivo.name}</span>
-                    `;
-                }
-                
-                previewContainer.appendChild(previewItem);
-            };
-            
-            reader.readAsDataURL(archivo);
-            mostrarNotificacion(`Error al subir ${archivo.name}, guardado localmente`, 'warning');
-        }
+            // Actualizar la galería después de cada archivo
+            actualizarGaleria();
+        };
+        
+        reader.readAsDataURL(archivo);
     }
     
-    // Actualizar la galería
-    actualizarGaleria();
     mostrarNotificacion('¡Archivos procesados exitosamente!');
     
     // Limpiar el input
@@ -661,45 +619,35 @@ function eliminarFoto(index) {
         document.body.removeChild(modalConfirmacion);
     };
     
-    window.confirmarEliminacion = async function(idx) {
-        // Usar Firebase para eliminar la foto
-        const exito = await eliminarFotoFirebase(idx);
+    window.confirmarEliminacion = function(idx) {
+        // Eliminar del array y actualizar localStorage
+        fotos.splice(idx, 1);
+        localStorage.setItem('fotos', JSON.stringify(fotos));
         
         actualizarGaleria();
         cerrarModal();
-        
-        if (exito) {
-            mostrarNotificacion('Foto/video eliminado correctamente');
-        } else {
-            mostrarNotificacion('Foto/video eliminado localmente (sin conexión)', 'warning');
-        }
+        mostrarNotificacion('Foto/video eliminado correctamente');
         
         document.body.removeChild(modalConfirmacion);
     };
 }
 
 // Función para marcar sueños como cumplidos
-async function marcarSuenoCumplido(index) {
+function marcarSuenoCumplido(index) {
     const nuevoEstado = !suenos[index].cumplido;
     const fechaCumplido = nuevoEstado ? new Date().toLocaleDateString() : null;
     
-    const datosActualizados = {
-        cumplido: nuevoEstado,
-        fechaCumplido: fechaCumplido
-    };
+    // Actualizar el sueño en el array
+    suenos[index].cumplido = nuevoEstado;
+    suenos[index].fechaCumplido = fechaCumplido;
     
-    // Usar Firebase para actualizar el sueño
-    const exito = await actualizarSuenoFirebase(index, datosActualizados);
+    // Guardar en localStorage
+    localStorage.setItem('suenos', JSON.stringify(suenos));
     
     cargarSuenos();
     
     const mensaje = nuevoEstado ? '¡Sueño marcado como cumplido!' : 'Sueño desmarcado';
-    
-    if (exito) {
-        mostrarNotificacion(mensaje);
-    } else {
-        mostrarNotificacion(mensaje + ' (guardado localmente)', 'warning');
-    }
+    mostrarNotificacion(mensaje);
 }
 
 // Función para formatear fecha
