@@ -288,6 +288,8 @@ function verificarSupabase() {
             }
             
             cargarDatosDesdeSupabase();
+            // Iniciar sincronización automática
+            iniciarSincronizacionAutomatica();
         } else {
             console.log('⚠️ Usando localStorage - Sin sincronización');
             // Cargar datos locales si Supabase no está activo
@@ -317,14 +319,47 @@ async function forzarSincronizacion() {
 // Exportar función para uso en consola
 window.forzarSincronizacion = forzarSincronizacion;
 
+// Sincronización automática en tiempo real
+let intervalSincronizacion = null;
+
+// Función para iniciar sincronización automática
+function iniciarSincronizacionAutomatica() {
+    if (!supabaseActivo) return;
+    
+    // Sincronizar cada 30 segundos
+    intervalSincronizacion = setInterval(async () => {
+        try {
+            console.log('🔄 Sincronización automática...');
+            await cargarDatosDesdeSupabase();
+        } catch (error) {
+            console.error('Error en sincronización automática:', error);
+        }
+    }, 30000); // 30 segundos
+    
+    console.log('✅ Sincronización automática iniciada (cada 30 segundos)');
+}
+
+// Función para detener sincronización automática
+function detenerSincronizacionAutomatica() {
+    if (intervalSincronizacion) {
+        clearInterval(intervalSincronizacion);
+        intervalSincronizacion = null;
+        console.log('⏹️ Sincronización automática detenida');
+    }
+}
+
+// Exportar funciones
+window.iniciarSincronizacionAutomatica = iniciarSincronizacionAutomatica;
+window.detenerSincronizacionAutomatica = detenerSincronizacionAutomatica;
+
 // Sincronizar datos bidireccional entre localStorage y Supabase
 async function cargarDatosDesdeSupabase() {
     if (!supabaseActivo) return;
     
     try {
-        console.log('🔄 Iniciando sincronización bidireccional...');
+        console.log('🔄 Iniciando sincronización desde Supabase...');
         
-        // Obtener datos de Supabase
+        // Obtener datos de Supabase (fuente de verdad)
         const suenosSupabase = await obtenerSuenosSupabase();
         const fotosSupabase = await obtenerFotosSupabase();
         
@@ -334,48 +369,37 @@ async function cargarDatosDesdeSupabase() {
         const suenosLocal = JSON.parse(localStorage.getItem('suenos')) || [];
         const fotosLocal = JSON.parse(localStorage.getItem('fotos')) || [];
         
-        console.log(`💾 Datos locales: ${suenosLocal.length} sueños, ${fotosLocal.length} fotos`);
+        console.log(`💾 Datos locales antes: ${suenosLocal.length} sueños, ${fotosLocal.length} fotos`);
         
-        // Sincronizar sueños: priorizar Supabase si tiene más datos
-        if (suenosSupabase.length >= suenosLocal.length) {
-            suenos = suenosSupabase.map(s => ({
-                texto: s.texto,
-                fecha: formatearFecha(new Date(s.created_at)),
-                cumplido: s.cumplido,
-                fechaCumplido: s.cumplido ? formatearFecha(new Date(s.created_at)) : null,
-                id: s.id
-            }));
-            localStorage.setItem('suenos', JSON.stringify(suenos));
-            console.log('✅ Sueños sincronizados desde Supabase');
-        } else {
-            // Mantener datos locales si tiene más contenido
-            suenos = suenosLocal;
-            console.log('📱 Manteniendo sueños locales (más recientes)');
-        }
+        // SIEMPRE sincronizar desde Supabase (es la fuente de verdad)
+        // Sincronizar sueños
+        suenos = suenosSupabase.map(s => ({
+            texto: s.texto,
+            fecha: formatearFecha(new Date(s.created_at)),
+            cumplido: s.cumplido,
+            fechaCumplido: s.cumplido ? formatearFecha(new Date(s.created_at)) : null,
+            id: s.id
+        }));
+        localStorage.setItem('suenos', JSON.stringify(suenos));
+        console.log(`✅ Sueños sincronizados: ${suenos.length} elementos`);
         
-        // Sincronizar fotos: priorizar Supabase si tiene más datos
-        if (fotosSupabase.length >= fotosLocal.length) {
-            fotos = fotosSupabase.map(f => ({
-                nombre: f.nombre,
-                url: f.url,
-                src: f.url, // Agregar src para compatibilidad con la galería
-                fecha: formatearFecha(new Date(f.created_at)),
-                tipo: f.tipo === 'video' ? 'video' : 'imagen', // Mapear tipo correctamente
-                id: f.id
-            }));
-            localStorage.setItem('fotos', JSON.stringify(fotos));
-            console.log('✅ Fotos sincronizadas desde Supabase');
-        } else {
-            // Mantener datos locales si tiene más contenido
-            fotos = fotosLocal;
-            console.log('📱 Manteniendo fotos locales (más recientes)');
-        }
+        // Sincronizar fotos
+        fotos = fotosSupabase.map(f => ({
+            nombre: f.nombre,
+            url: f.url,
+            src: f.url, // Agregar src para compatibilidad con la galería
+            fecha: formatearFecha(new Date(f.created_at)),
+            tipo: f.tipo === 'video' ? 'video' : 'imagen', // Mapear tipo correctamente
+            id: f.id
+        }));
+        localStorage.setItem('fotos', JSON.stringify(fotos));
+        console.log(`✅ Fotos sincronizadas: ${fotos.length} elementos`);
         
         // Actualizar interfaz
         cargarSuenos();
         actualizarGaleria();
         
-        console.log('🎉 Sincronización completada');
+        console.log(`🎉 Sincronización completada - Local ahora: ${suenos.length} sueños, ${fotos.length} fotos`);
         
     } catch (error) {
         console.error('❌ Error al sincronizar datos:', error);
@@ -525,6 +549,11 @@ async function manejarSubidaArchivo(event) {
             
             fotos.push(nuevaFoto);
             localStorage.setItem('fotos', JSON.stringify(fotos));
+            
+            // Sincronizar inmediatamente si Supabase está activo
+            if (supabaseActivo && nuevaFoto.id) {
+                setTimeout(() => cargarDatosDesdeSupabase(), 1000);
+            }
             
             // Mostrar preview
             const previewItem = document.createElement('div');
@@ -826,6 +855,11 @@ function eliminarFoto(index) {
             actualizarGaleria();
             cerrarModal();
             
+            // Sincronizar inmediatamente después de eliminar
+            if (supabaseActivo) {
+                setTimeout(() => cargarDatosDesdeSupabase(), 1000);
+            }
+            
         } catch (error) {
             console.error('Error al eliminar foto:', error);
             // Eliminar solo localmente si falla Supabase
@@ -834,6 +868,11 @@ function eliminarFoto(index) {
             mostrarNotificacion('Foto/video eliminado localmente (error de sincronización)', 'warning');
             actualizarGaleria();
             cerrarModal();
+            
+            // Sincronizar para verificar estado actual
+            if (supabaseActivo) {
+                setTimeout(() => cargarDatosDesdeSupabase(), 1000);
+            }
         }
         
         document.body.removeChild(modalConfirmacion);
