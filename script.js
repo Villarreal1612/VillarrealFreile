@@ -290,9 +290,15 @@ function verificarSupabase() {
             cargarDatosDesdeSupabase();
         } else {
             console.log('⚠️ Usando localStorage - Sin sincronización');
+            // Cargar datos locales si Supabase no está activo
+            cargarSuenos();
+            actualizarGaleria();
         }
     } else {
         console.log('❌ Supabase no disponible - Usando localStorage');
+        // Cargar datos locales si Supabase no está disponible
+        cargarSuenos();
+        actualizarGaleria();
     }
 }
 
@@ -891,8 +897,8 @@ window.addEventListener('load', function() {
     verificarSupabase();
     
     actualizarBotonesPaginacion();
-    cargarSuenos();
-    actualizarGaleria();
+    // No cargar datos locales aquí - verificarSupabase ya maneja la sincronización
+    // cargarSuenos() y actualizarGaleria() se llaman desde cargarDatosDesdeSupabase()
     
     // Agregar event listener para el input de archivos
     const inputMultimedia = document.getElementById('input-multimedia');
