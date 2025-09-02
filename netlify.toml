@@ -1,0 +1,56 @@
+[build]
+  # Directorio de publicación (donde están los archivos del sitio)
+  publish = "."
+  
+  # Comando de construcción (no necesario para sitios estáticos simples)
+  # command = "npm run build"
+
+[build.environment]
+  # Variables de entorno si las necesitas
+  NODE_VERSION = "18"
+
+# Configuración para manejar errores 404
+[[redirects]]
+  from = "/404"
+  to = "/index.html"
+  status = 404
+
+# Configuración de redirecciones
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  
+# Configuración de headers para mejor rendimiento
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000"
+
+[[headers]]
+  for = "*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000"
+
+[[headers]]
+  for = "*.jpg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000"
+
+[[headers]]
+  for = "*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000"
+
+[[headers]]
+  for = "*.mp4"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000"
