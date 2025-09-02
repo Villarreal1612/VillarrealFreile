@@ -275,7 +275,18 @@
             testConnection();
             loadPhotosFromSupabase();
             loadPhotosFromLocal();
+            
+            // Verificar si las funciones de sincronización están disponibles
+            if (typeof verificarSupabase === 'function') {
+                log('Funciones de sincronización disponibles - Iniciando verificación');
+                verificarSupabase();
+            } else {
+                log('Funciones de sincronización NO disponibles', 'warning');
+            }
         });
     </script>
+    
+    <!-- Incluir script principal para funciones de sincronización -->
+    <script src="script.js"></script>
 </body>
 </html>
