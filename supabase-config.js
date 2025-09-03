@@ -1,6 +1,36 @@
 // Configuración de Supabase
-const SUPABASE_URL = 'https://ggzyqssptaonmwxoaedw.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdnenlxc3NwdGFvbm13eG9hZWR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4NDc4MjYsImV4cCI6MjA3MjQyMzgyNn0.u_EpXzGNFqD_M_DQ2mnofkqCoSdzDjXv09-norDHpKo';
+// Función para obtener variables de entorno en diferentes contextos
+function getEnvVar(varName, defaultValue) {
+    // Intentar obtener de variables de entorno del proceso (Node.js)
+    if (typeof process !== 'undefined' && process.env && process.env[varName]) {
+        return process.env[varName];
+    }
+    
+    // Intentar obtener de variables globales del navegador (Netlify/Vercel)
+    if (typeof window !== 'undefined' && window[varName]) {
+        return window[varName];
+    }
+    
+    // Intentar obtener de meta tags (otra forma común de inyectar variables)
+    if (typeof document !== 'undefined') {
+        const metaTag = document.querySelector(`meta[name="${varName}"]`);
+        if (metaTag && metaTag.content) {
+            return metaTag.content;
+        }
+    }
+    
+    return defaultValue;
+}
+
+// Configuración con fallbacks robustos
+const SUPABASE_URL = getEnvVar('VITE_SUPABASE_URL', 'https://ggzyqssptaonmwxoaedw.supabase.co');
+const SUPABASE_ANON_KEY = getEnvVar('VITE_SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdnenlxc3NwdGFvbm13eG9hZWR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4NDc4MjYsImV4cCI6MjA3MjQyMzgyNn0.u_EpXzGNFqD_M_DQ2mnofkqCoSdzDjXv09-norDHpKo');
+
+console.log('🌍 Entorno detectado:', window.location.hostname);
+console.log('🔧 URL Supabase:', SUPABASE_URL);
+console.log('🔧 Key configurada:', !!SUPABASE_ANON_KEY);
+console.log('🔧 Fuente URL:', getEnvVar('VITE_SUPABASE_URL') ? 'Variable de entorno' : 'Valor por defecto');
+console.log('🔧 Fuente Key:', getEnvVar('VITE_SUPABASE_ANON_KEY') ? 'Variable de entorno' : 'Valor por defecto');
 
 let supabase = null;
 

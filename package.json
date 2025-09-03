@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "script.js",
   "scripts": {
+    "build": "node build-env.js",
     "start": "live-server --port=3000 --open=/index.html",
     "dev": "live-server --port=3000 --open=/index.html --watch=.",
     "test": "echo \"Error: no test specified\" && exit 1"

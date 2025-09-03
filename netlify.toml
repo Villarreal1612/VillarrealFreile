@@ -2,12 +2,15 @@
   # Directorio de publicación (donde están los archivos del sitio)
   publish = "."
   
-  # Comando de construcción (no necesario para sitios estáticos simples)
-  # command = "npm run build"
+  # Comando de construcción para inyectar variables de entorno
+  command = "node build-env.js"
 
 [build.environment]
   # Variables de entorno si las necesitas
   NODE_VERSION = "18"
+  # Variables de Supabase para producción
+  VITE_SUPABASE_URL = "https://ggzyqssptaonmwxoaedw.supabase.co"
+  VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdnenlxc3NwdGFvbm13eG9hZWR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4NDc4MjYsImV4cCI6MjA3MjQyMzgyNn0.u_EpXzGNFqD_M_DQ2mnofkqCoSdzDjXv09-norDHpKo"
 
 # Configuración para manejar errores 404
 [[redirects]]
