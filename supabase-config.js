@@ -94,14 +94,59 @@ async function actualizarSuenoSupabase(id, cumplido) {
 }
 
 // Funciones para manejar fotos
+async function verificarYCrearBucket() {
+    try {
+        // Verificar si el bucket existe
+        const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+        
+        if (listError) {
+            console.warn('Error al listar buckets:', listError);
+            return false;
+        }
+        
+        const bucketExists = buckets.some(bucket => bucket.name === 'recuerdos-media');
+        
+        if (!bucketExists) {
+            // Crear el bucket si no existe
+            const { data: newBucket, error: createError } = await supabase.storage
+                .createBucket('recuerdos-media', {
+                    public: true,
+                    allowedMimeTypes: ['image/*', 'video/*'],
+                    fileSizeLimit: 52428800 // 50MB
+                });
+            
+            if (createError) {
+                console.error('Error al crear bucket:', createError);
+                return false;
+            }
+            
+            console.log('Bucket recuerdos-media creado exitosamente');
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Error en verificarYCrearBucket:', error);
+        return false;
+    }
+}
+
 async function subirFotoSupabase(file, fileName) {
     try {
+        // Verificar y crear bucket si es necesario
+        const bucketReady = await verificarYCrearBucket();
+        if (!bucketReady) {
+            throw new Error('No se pudo verificar o crear el bucket de almacenamiento');
+        }
+        
         // Subir archivo a Storage
         const { data: uploadData, error: uploadError } = await supabase.storage
             .from('recuerdos-media')
             .upload(fileName, file);
         
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+            console.error('Error de subida:', uploadError);
+            throw uploadError;
+        }
         
         // Obtener URL pública
         const { data: urlData } = supabase.storage
@@ -115,7 +160,7 @@ async function subirFotoSupabase(file, fileName) {
                 { 
                     nombre: fileName, 
                     url: urlData.publicUrl,
-                    tipo: file.type.startsWith('video/') ? 'video' : 'image'
+                    tipo: file.type.startsWith('video/') ? 'video' : 'imagen'
                 }
             ])
             .select();
@@ -203,6 +248,7 @@ window.agregarSuenoSupabase = agregarSuenoSupabase;
 window.obtenerSuenosSupabase = obtenerSuenosSupabase;
 window.marcarSuenoCumplidoSupabase = marcarSuenoCumplidoSupabase;
 window.actualizarSuenoSupabase = actualizarSuenoSupabase;
+window.verificarYCrearBucket = verificarYCrearBucket;
 window.subirFotoSupabase = subirFotoSupabase;
 window.obtenerFotosSupabase = obtenerFotosSupabase;
 window.eliminarFotoSupabase = eliminarFotoSupabase;

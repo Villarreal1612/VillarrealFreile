@@ -714,7 +714,17 @@ async function manejarSubidaArchivo(event) {
             
         } catch (error) {
             console.error('Error al procesar archivo:', error);
-            mostrarNotificacion(`Error al subir ${archivo.name}`, 'error');
+            let mensajeError = `Error al subir ${archivo.name}`;
+            
+            if (error.message && error.message.includes('bucket')) {
+                mensajeError += ': Problema con el almacenamiento en la nube';
+            } else if (error.message && error.message.includes('upload')) {
+                mensajeError += ': Error durante la subida';
+            } else if (error.message) {
+                mensajeError += `: ${error.message}`;
+            }
+            
+            mostrarNotificacion(mensajeError, 'error');
         }
     }
     
