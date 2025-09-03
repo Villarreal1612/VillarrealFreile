@@ -88,6 +88,11 @@ async function marcarSuenoCumplidoSupabase(id, cumplido) {
     }
 }
 
+// Función para actualizar estado de sueño (alias para compatibilidad)
+async function actualizarSuenoSupabase(id, cumplido) {
+    return await marcarSuenoCumplidoSupabase(id, cumplido);
+}
+
 // Funciones para manejar fotos
 async function subirFotoSupabase(file, fileName) {
     try {
@@ -197,14 +202,20 @@ window.initSupabase = initSupabase;
 window.agregarSuenoSupabase = agregarSuenoSupabase;
 window.obtenerSuenosSupabase = obtenerSuenosSupabase;
 window.marcarSuenoCumplidoSupabase = marcarSuenoCumplidoSupabase;
+window.actualizarSuenoSupabase = actualizarSuenoSupabase;
 window.subirFotoSupabase = subirFotoSupabase;
 window.obtenerFotosSupabase = obtenerFotosSupabase;
 window.eliminarFotoSupabase = eliminarFotoSupabase;
 window.migrarDatosASupabase = migrarDatosASupabase;
 
 // Hacer supabase disponible globalmente
-Object.defineProperty(window, 'supabase', {
+Object.defineProperty(window, 'supabaseClient', {
     get: function() {
         return supabase;
     }
 });
+
+// También exportar una función para obtener el cliente
+window.getSupabaseClient = function() {
+    return supabase;
+};

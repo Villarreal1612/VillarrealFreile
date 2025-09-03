@@ -285,7 +285,8 @@ async function verificarSupabase() {
         }
         
         // Verificar que supabase esté disponible globalmente
-        if (!window.supabase || !supabase) {
+        const clienteSupabase = window.getSupabaseClient ? window.getSupabaseClient() : null;
+        if (!clienteSupabase) {
             console.error('❌ Cliente de Supabase no disponible');
             supabaseActivo = false;
             mostrarNotificacion('Error: Cliente de Supabase no disponible', 'error');
@@ -293,7 +294,7 @@ async function verificarSupabase() {
         }
         
         // Intentar una consulta simple para verificar la conexión
-        const { data, error } = await supabase
+        const { data, error } = await clienteSupabase
             .from('suenos')
             .select('*')
             .limit(1);
@@ -494,6 +495,7 @@ function detenerSincronizacionAutomatica() {
     }
 }
 
+window.verificarSupabase = verificarSupabase;
 window.recargarDatos = recargarDatos;
 window.sincronizarManualmente = sincronizarManualmente;
 window.iniciarSincronizacionAutomatica = iniciarSincronizacionAutomatica;

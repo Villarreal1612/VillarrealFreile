@@ -384,9 +384,9 @@
                 const verificar = () => {
                     intentos++;
                     if (window.supabase && typeof window.supabase.createClient === 'function') {
-                        console.log('✅ Supabase SDK disponible');
-                        resolve();
-                    } else if (intentos < 100) {
+                    console.log('✅ Supabase SDK disponible');
+                    resolve();
+                } else if (intentos < 100) {
                         setTimeout(verificar, 50);
                     } else {
                         console.warn('⚠️ Timeout esperando Supabase, continuando...');
