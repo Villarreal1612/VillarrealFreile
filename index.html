@@ -128,6 +128,16 @@
                 </svg>
                 Llenar Relación
             </button>
+
+            <button class="boton-contador" onclick="sincronizarManualmente()" title="Sincronizar datos manualmente">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" color="#ffffff"
+                    fill="none">
+                    <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M12 8V12L15 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M8 4L10 2M16 4L14 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                Sincronizar
+            </button>
         </div>
     </div>
 
@@ -366,7 +376,45 @@
 
     <!-- Supabase SDK -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-
+    <script>
+        // Función para esperar a que Supabase esté disponible
+        function esperarSupabase() {
+            return new Promise((resolve) => {
+                let intentos = 0;
+                const verificar = () => {
+                    intentos++;
+                    if (window.supabase && typeof window.supabase.createClient === 'function') {
+                        console.log('✅ Supabase SDK disponible');
+                        resolve();
+                    } else if (intentos < 100) {
+                        setTimeout(verificar, 50);
+                    } else {
+                        console.warn('⚠️ Timeout esperando Supabase, continuando...');
+                        resolve();
+                    }
+                };
+                verificar();
+            });
+        }
+        
+        // Inicializar cuando la página esté lista
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🚀 Esperando Supabase SDK...');
+            await esperarSupabase();
+            
+            // Ejecutar inicialización
+            if (typeof window.initSupabase === 'function') {
+                setTimeout(() => {
+                    console.log('🔧 Ejecutando inicialización...');
+                    window.initSupabase();
+                    if (typeof window.verificarSupabase === 'function') {
+                        window.verificarSupabase();
+                    }
+                }, 500);
+            }
+        });
+    </script>
+    
     <!-- Supabase Configuration -->
     <script src="supabase-config.js"></script>
     <script src="script.js"></script>

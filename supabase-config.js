@@ -14,23 +14,27 @@ function initSupabase() {
             SUPABASE_ANON_KEY === 'TU_SUPABASE_ANON_KEY' ||
             SUPABASE_URL.trim() === '' ||
             SUPABASE_ANON_KEY.trim() === '') {
-            console.warn('⚠️ Credenciales de Supabase no configuradas. Usando localStorage únicamente.');
-            console.info('📝 Para habilitar la sincronización, configura SUPABASE_URL y SUPABASE_ANON_KEY en supabase-config.js');
+            console.warn('⚠️ Credenciales de Supabase no configuradas. Funcionando en modo offline.');
+            mostrarNotificacion('Funcionando en modo offline - Solo almacenamiento local', 'warning');
             return false;
         }
         
         // Verificar si el SDK de Supabase está disponible
-        if (typeof window.supabase === 'undefined') {
-            console.error('❌ SDK de Supabase no encontrado. Verifica que el script esté cargado.');
+        if (typeof window.supabase === 'undefined' || !window.supabase || !window.supabase.createClient) {
+            console.warn('⚠️ SDK de Supabase no disponible. Funcionando en modo offline.');
+            console.log('Esto puede deberse a problemas de conectividad o bloqueo de scripts externos.');
+            mostrarNotificacion('Modo offline activado - Datos guardados localmente', 'warning');
             return false;
         }
         
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         console.log('✅ Supabase inicializado correctamente');
+        mostrarNotificacion('Conectado a Supabase - Sincronización habilitada', 'success');
         return true;
     } catch (error) {
         console.error('❌ Error al inicializar Supabase:', error);
-        console.info('📝 Verifica que las credenciales sean válidas y que el proyecto de Supabase esté activo.');
+        console.info('📝 Funcionando en modo offline. Los datos se guardan localmente.');
+        mostrarNotificacion('Error de conexión - Modo offline activado', 'warning');
         return false;
     }
 }
@@ -188,7 +192,7 @@ async function migrarDatosASupabase() {
     }
 }
 
-// Exportar funciones para uso global
+// Exportar funciones y variables para uso global
 window.initSupabase = initSupabase;
 window.agregarSuenoSupabase = agregarSuenoSupabase;
 window.obtenerSuenosSupabase = obtenerSuenosSupabase;
@@ -197,3 +201,10 @@ window.subirFotoSupabase = subirFotoSupabase;
 window.obtenerFotosSupabase = obtenerFotosSupabase;
 window.eliminarFotoSupabase = eliminarFotoSupabase;
 window.migrarDatosASupabase = migrarDatosASupabase;
+
+// Hacer supabase disponible globalmente
+Object.defineProperty(window, 'supabase', {
+    get: function() {
+        return supabase;
+    }
+});
