@@ -296,6 +296,9 @@ async function verificarSupabase() {
         // Cargar todos los datos desde Supabase
         await cargarDatosDesdeSupabase();
         
+        // Iniciar sincronización automática
+        iniciarSincronizacionAutomatica();
+        
         return true;
         
     } catch (error) {
@@ -305,6 +308,12 @@ async function verificarSupabase() {
         return false;
     }
 }
+
+// Variables para sincronización automática
+let intervalSincronizacion = null;
+let ultimaActualizacion = new Date();
+let contadorSuenos = 0;
+let contadorFotos = 0;
 
 // Función para recargar datos desde Supabase
 async function recargarDatos() {
@@ -317,7 +326,93 @@ async function recargarDatos() {
     mostrarNotificacion('Datos recargados desde la nube');
 }
 
+// Función para verificar cambios en tiempo real
+async function verificarCambios() {
+    if (!supabaseActivo) return;
+    
+    try {
+        // Verificar nuevos sueños
+        const { data: suenosData, error: suenosError } = await supabase
+            .from('suenos')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        // Verificar nuevas fotos
+        const { data: fotosData, error: fotosError } = await supabase
+            .from('fotos')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (suenosError || fotosError) {
+            console.error('Error al verificar cambios:', suenosError || fotosError);
+            return;
+        }
+        
+        const nuevoContadorSuenos = suenosData ? suenosData.length : 0;
+        const nuevoContadorFotos = fotosData ? fotosData.length : 0;
+        
+        // Detectar cambios
+        let hayNuevosDatos = false;
+        
+        if (nuevoContadorSuenos > contadorSuenos) {
+            hayNuevosDatos = true;
+            mostrarNotificacion(`${nuevoContadorSuenos - contadorSuenos} nuevo(s) sueño(s) sincronizado(s)`, 'success');
+        }
+        
+        if (nuevoContadorFotos > contadorFotos) {
+            hayNuevosDatos = true;
+            mostrarNotificacion(`${nuevoContadorFotos - contadorFotos} nueva(s) foto(s) sincronizada(s)`, 'success');
+        }
+        
+        // Actualizar contadores
+        contadorSuenos = nuevoContadorSuenos;
+        contadorFotos = nuevoContadorFotos;
+        
+        // Si hay nuevos datos, actualizar la interfaz
+        if (hayNuevosDatos) {
+            suenos = suenosData || [];
+            fotos = fotosData || [];
+            cargarSuenos();
+            cargarFotos();
+            console.log('🔄 Datos sincronizados automáticamente');
+        }
+        
+    } catch (error) {
+        console.error('Error en verificación automática:', error);
+    }
+}
+
+// Función para iniciar sincronización automática
+function iniciarSincronizacionAutomatica() {
+    if (!supabaseActivo) {
+        console.log('⚠️ No se puede iniciar sincronización: Supabase no activo');
+        return;
+    }
+    
+    // Limpiar intervalo anterior si existe
+    if (intervalSincronizacion) {
+        clearInterval(intervalSincronizacion);
+    }
+    
+    // Verificar cambios cada 10 segundos
+    intervalSincronizacion = setInterval(verificarCambios, 10000);
+    
+    console.log('✅ Sincronización automática iniciada (cada 10 segundos)');
+    mostrarNotificacion('Sincronización automática activada', 'info');
+}
+
+// Función para detener sincronización automática
+function detenerSincronizacionAutomatica() {
+    if (intervalSincronizacion) {
+        clearInterval(intervalSincronizacion);
+        intervalSincronizacion = null;
+        console.log('⏹️ Sincronización automática detenida');
+    }
+}
+
 window.recargarDatos = recargarDatos;
+window.iniciarSincronizacionAutomatica = iniciarSincronizacionAutomatica;
+window.detenerSincronizacionAutomatica = detenerSincronizacionAutomatica;
 
 // Cargar datos directamente desde Supabase
 async function cargarDatosDesdeSupabase() {
@@ -352,6 +447,10 @@ async function cargarDatosDesdeSupabase() {
             tipo: f.tipo === 'video' ? 'video' : 'imagen', // Mapear tipo correctamente
             id: f.id
         }));
+        
+        // Inicializar contadores para sincronización automática
+        contadorSuenos = suenos.length;
+        contadorFotos = fotos.length;
         
         console.log(`✅ Datos cargados exitosamente: ${suenos.length} sueños, ${fotos.length} fotos`);
         
