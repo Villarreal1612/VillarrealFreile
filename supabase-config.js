@@ -7,6 +7,11 @@ let supabase = null;
 // Función para inicializar Supabase
 function initSupabase() {
     try {
+        console.log('🔧 Iniciando configuración de Supabase...');
+        console.log('🔍 URL:', SUPABASE_URL);
+        console.log('🔍 Key disponible:', !!SUPABASE_ANON_KEY);
+        console.log('🔍 Window.supabase disponible:', !!window.supabase);
+        
         // Verificar si las credenciales están configuradas
         if (!SUPABASE_URL || 
             !SUPABASE_ANON_KEY || 
@@ -21,18 +26,31 @@ function initSupabase() {
         
         // Verificar si el SDK de Supabase está disponible
         if (typeof window.supabase === 'undefined' || !window.supabase || !window.supabase.createClient) {
-            console.warn('⚠️ SDK de Supabase no disponible. Funcionando en modo offline.');
-            console.log('Esto puede deberse a problemas de conectividad o bloqueo de scripts externos.');
-            mostrarNotificacion('Modo offline activado - Datos guardados localmente', 'warning');
+            console.error('❌ SDK de Supabase no disponible.');
+            console.error('❌ Esto indica que el script de Supabase no se cargó correctamente.');
+            console.error('❌ Posibles causas:');
+            console.error('   - Problemas de conectividad');
+            console.error('   - Bloqueo de scripts externos');
+            console.error('   - CDN no disponible');
+            console.error('   - Políticas de CORS');
+            mostrarNotificacion('Error: SDK de Supabase no disponible. Revisa la conexión.', 'error');
             return false;
         }
         
+        console.log('🔄 Creando cliente de Supabase...');
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        if (!supabase) {
+            throw new Error('No se pudo crear el cliente de Supabase');
+        }
+        
         console.log('✅ Supabase inicializado correctamente');
+        console.log('✅ Cliente creado:', !!supabase);
         mostrarNotificacion('Conectado a Supabase - Sincronización habilitada', 'success');
         return true;
     } catch (error) {
         console.error('❌ Error al inicializar Supabase:', error);
+        console.error('❌ Stack trace:', error.stack);
         console.info('📝 Funcionando en modo offline. Los datos se guardan localmente.');
         mostrarNotificacion('Error de conexión - Modo offline activado', 'warning');
         return false;
@@ -42,6 +60,13 @@ function initSupabase() {
 // Funciones para manejar sueños
 async function agregarSuenoSupabase(texto) {
     try {
+        console.log('🔄 Intentando agregar sueño a Supabase:', texto);
+        console.log('🔍 Cliente Supabase disponible:', !!supabase);
+        
+        if (!supabase) {
+            throw new Error('Cliente de Supabase no inicializado');
+        }
+        
         const { data, error } = await supabase
             .from('suenos')
             .insert([
@@ -49,10 +74,21 @@ async function agregarSuenoSupabase(texto) {
             ])
             .select();
         
-        if (error) throw error;
+        if (error) {
+            console.error('❌ Error de Supabase al agregar sueño:', error);
+            throw error;
+        }
+        
+        console.log('✅ Sueño agregado exitosamente:', data[0]);
         return data[0];
     } catch (error) {
-        console.error('Error al agregar sueño:', error);
+        console.error('❌ Error al agregar sueño:', error);
+        console.error('❌ Detalles del error:', {
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint
+        });
         throw error;
     }
 }
@@ -132,28 +168,52 @@ async function verificarYCrearBucket() {
 
 async function subirFotoSupabase(file, fileName) {
     try {
+        console.log('🔄 Intentando subir archivo a Supabase:', {
+            nombre: fileName,
+            tamaño: file.size,
+            tipo: file.type
+        });
+        console.log('🔍 Cliente Supabase disponible:', !!supabase);
+        
+        if (!supabase) {
+            throw new Error('Cliente de Supabase no inicializado');
+        }
+        
         // Verificar y crear bucket si es necesario
+        console.log('🔄 Verificando bucket...');
         const bucketReady = await verificarYCrearBucket();
         if (!bucketReady) {
             throw new Error('No se pudo verificar o crear el bucket de almacenamiento');
         }
+        console.log('✅ Bucket verificado/creado');
         
         // Subir archivo a Storage
+        console.log('⬆️ Subiendo archivo al storage...');
         const { data: uploadData, error: uploadError } = await supabase.storage
             .from('recuerdos-media')
             .upload(fileName, file);
         
         if (uploadError) {
-            console.error('Error de subida:', uploadError);
+            console.error('❌ Error al subir archivo al storage:', uploadError);
+            console.error('❌ Detalles del error:', {
+                message: uploadError.message,
+                code: uploadError.code,
+                details: uploadError.details,
+                hint: uploadError.hint
+            });
             throw uploadError;
         }
+        console.log('✅ Archivo subido al storage:', uploadData);
         
         // Obtener URL pública
+        console.log('🔗 Obteniendo URL pública...');
         const { data: urlData } = supabase.storage
             .from('recuerdos-media')
             .getPublicUrl(fileName);
+        console.log('🔗 URL pública obtenida:', urlData.publicUrl);
         
         // Guardar referencia en la base de datos
+        console.log('💾 Insertando referencia en tabla fotos...');
         const { data: dbData, error: dbError } = await supabase
             .from('fotos')
             .insert([
@@ -165,17 +225,36 @@ async function subirFotoSupabase(file, fileName) {
             ])
             .select();
         
-        if (dbError) throw dbError;
+        if (dbError) {
+            console.error('❌ Error al insertar en tabla fotos:', dbError);
+            console.error('❌ Detalles del error:', {
+                message: dbError.message,
+                code: dbError.code,
+                details: dbError.details,
+                hint: dbError.hint
+            });
+            throw dbError;
+        }
+        console.log('✅ Referencia insertada en BD:', dbData[0]);
         
-        return {
+        const resultado = {
             id: dbData[0].id,
             nombre: fileName,
             url: urlData.publicUrl,
             tipo: dbData[0].tipo,
             fecha: dbData[0].created_at
         };
+        
+        console.log('✅ Proceso completo exitoso:', resultado);
+        return resultado;
     } catch (error) {
-        console.error('Error al subir foto:', error);
+        console.error('❌ Error al subir foto:', error);
+        console.error('❌ Detalles del error:', {
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint
+        });
         throw error;
     }
 }
@@ -242,6 +321,67 @@ async function migrarDatosASupabase() {
     }
 }
 
+// Función para verificar Supabase con logging detallado
+async function verificarSupabase() {
+    try {
+        console.log('🔄 Iniciando verificación de Supabase...');
+        
+        // Inicializar Supabase
+        initSupabase();
+        
+        if (!supabase) {
+            console.error('❌ Cliente de Supabase no disponible');
+            return false;
+        }
+        
+        console.log('✅ Cliente de Supabase inicializado');
+        console.log('🔍 URL de Supabase:', SUPABASE_URL);
+        console.log('🔍 Clave anónima configurada:', !!SUPABASE_ANON_KEY);
+        
+        // Verificar conexión con una consulta simple
+        console.log('🔄 Verificando conexión con consulta de prueba...');
+        const { data, error } = await supabase
+            .from('suenos')
+            .select('count')
+            .limit(1);
+        
+        if (error) {
+            console.error('❌ Error al conectar con Supabase:', error);
+            console.error('❌ Detalles del error:', {
+                message: error.message,
+                code: error.code,
+                details: error.details,
+                hint: error.hint
+            });
+            return false;
+        }
+        
+        console.log('✅ Conexión con Supabase verificada');
+        console.log('📊 Datos de prueba:', data);
+        
+        // Cargar datos existentes
+        console.log('🔄 Cargando datos existentes...');
+        await cargarDatos();
+        
+        // Iniciar sincronización automática
+        console.log('🔄 Iniciando sincronización automática...');
+        iniciarSincronizacionAutomatica();
+        
+        console.log('✅ Verificación de Supabase completada exitosamente');
+        return true;
+    } catch (error) {
+        console.error('❌ Error en verificación de Supabase:', error);
+        console.error('❌ Detalles del error:', {
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint,
+            stack: error.stack
+        });
+        return false;
+    }
+}
+
 // Exportar funciones y variables para uso global
 window.initSupabase = initSupabase;
 window.agregarSuenoSupabase = agregarSuenoSupabase;
@@ -253,6 +393,7 @@ window.subirFotoSupabase = subirFotoSupabase;
 window.obtenerFotosSupabase = obtenerFotosSupabase;
 window.eliminarFotoSupabase = eliminarFotoSupabase;
 window.migrarDatosASupabase = migrarDatosASupabase;
+window.verificarSupabase = verificarSupabase;
 
 // Hacer supabase disponible globalmente
 Object.defineProperty(window, 'supabaseClient', {

@@ -374,41 +374,83 @@
         </div>
     </div>
 
-    <!-- Supabase SDK -->
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <!-- Supabase SDK con manejo de errores mejorado -->
     <script>
-        // Función para esperar a que Supabase esté disponible
-        function esperarSupabase() {
-            return new Promise((resolve) => {
-                let intentos = 0;
-                const verificar = () => {
-                    intentos++;
+        // Función para cargar Supabase SDK con fallback
+        function cargarSupabaseSDK() {
+            return new Promise((resolve, reject) => {
+                console.log('🔄 Cargando Supabase SDK...');
+                
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/@supabase/supabase-js@2';
+                script.async = true;
+                
+                script.onload = function() {
+                    console.log('✅ Script de Supabase cargado desde CDN');
+                    // Verificar que el objeto esté disponible
                     if (window.supabase && typeof window.supabase.createClient === 'function') {
-                    console.log('✅ Supabase SDK disponible');
-                    resolve();
-                } else if (intentos < 100) {
-                        setTimeout(verificar, 50);
-                    } else {
-                        console.warn('⚠️ Timeout esperando Supabase, continuando...');
+                        console.log('✅ Supabase SDK disponible y funcional');
                         resolve();
+                    } else {
+                        console.error('❌ Script cargado pero Supabase no disponible');
+                        reject(new Error('Supabase SDK no funcional'));
                     }
                 };
-                verificar();
+                
+                script.onerror = function(error) {
+                    console.error('❌ Error al cargar script de Supabase desde CDN:', error);
+                    console.error('❌ Posibles causas:');
+                    console.error('   - Sin conexión a internet');
+                    console.error('   - CDN no disponible');
+                    console.error('   - Bloqueador de anuncios/scripts');
+                    console.error('   - Políticas de red corporativa');
+                    reject(error);
+                };
+                
+                document.head.appendChild(script);
+                
+                // Timeout de 15 segundos
+                setTimeout(() => {
+                    if (!window.supabase) {
+                        console.error('❌ Timeout cargando Supabase SDK');
+                        reject(new Error('Timeout cargando SDK'));
+                    }
+                }, 15000);
+            });
+        }
+        
+        // Función para esperar a que Supabase esté disponible
+        function esperarSupabase() {
+            return new Promise(async (resolve) => {
+                try {
+                    await cargarSupabaseSDK();
+                    resolve(true);
+                } catch (error) {
+                    console.error('❌ No se pudo cargar Supabase SDK:', error.message);
+                    console.warn('⚠️ La aplicación funcionará en modo offline');
+                    resolve(false);
+                }
             });
         }
         
         // Inicializar cuando la página esté lista
         document.addEventListener('DOMContentLoaded', async function() {
-            console.log('🚀 Esperando Supabase SDK...');
-            await esperarSupabase();
+            console.log('🚀 Iniciando carga de dependencias...');
+            const supabaseDisponible = await esperarSupabase();
             
             // Ejecutar inicialización
             if (typeof window.initSupabase === 'function') {
                 setTimeout(() => {
                     console.log('🔧 Ejecutando inicialización...');
-                    window.initSupabase();
-                    if (typeof window.verificarSupabase === 'function') {
+                    const inicializado = window.initSupabase();
+                    
+                    if (inicializado && typeof window.verificarSupabase === 'function') {
                         window.verificarSupabase();
+                    } else if (!supabaseDisponible) {
+                        console.warn('⚠️ Funcionando en modo offline - Los datos se guardarán localmente');
+                        if (typeof mostrarNotificacion === 'function') {
+                            mostrarNotificacion('Modo offline: Los datos se guardan solo en este dispositivo', 'warning');
+                        }
                     }
                 }, 500);
             }
