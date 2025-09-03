@@ -9,6 +9,7 @@ Una aplicación web romántica que funciona como una caja fuerte digital para pa
 - 📸 **Galería de fotos y videos** con vista modal
 - 💭 **Sección de sueños** para planificar el futuro juntos
 - 📝 **Formulario para llenar la relación** con multimedia
+- ☁️ **Almacenamiento en la Nube**: Todos los datos se guardan directamente en Supabase
 - 🎨 **Diseño romántico** con colores y tipografías especiales
 - 📱 **Totalmente responsive** para móviles y tablets
 
@@ -17,7 +18,7 @@ Una aplicación web romántica que funciona como una caja fuerte digital para pa
 - HTML5
 - CSS3 (con Google Fonts)
 - JavaScript (Vanilla)
-- LocalStorage para persistencia de datos
+- Supabase - Base de datos y almacenamiento en la nube (fuente única de datos)
 - Responsive Design
 
 ## 🛠️ Instalación y Uso

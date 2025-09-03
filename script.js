@@ -259,120 +259,83 @@ function mostrarLlenarRelacion() {
 }
 
 // Variables para almacenamiento
-let suenos = JSON.parse(localStorage.getItem('suenos')) || [];
-let fotos = JSON.parse(localStorage.getItem('fotos')) || [];
+let suenos = [];
+let fotos = [];
 let supabaseActivo = false;
 
-// Verificar si Supabase está disponible
-function verificarSupabase() {
-    console.log('🔍 Verificando disponibilidad de Supabase...');
-    
-    if (typeof initSupabase === 'function') {
-        supabaseActivo = initSupabase();
-        if (supabaseActivo) {
-            console.log('✅ Supabase conectado - Sincronización habilitada');
-            // Verificar que todas las funciones estén disponibles
-            const funcionesRequeridas = [
-                'obtenerSuenosSupabase',
-                'obtenerFotosSupabase', 
-                'subirFotoSupabase',
-                'agregarSuenoSupabase',
-                'eliminarFotoSupabase'
-            ];
-            
-            const funcionesFaltantes = funcionesRequeridas.filter(fn => typeof window[fn] !== 'function');
-            if (funcionesFaltantes.length > 0) {
-                console.warn('⚠️ Funciones de Supabase faltantes:', funcionesFaltantes);
-            } else {
-                console.log('✅ Todas las funciones de Supabase disponibles');
-            }
-            
-            cargarDatosDesdeSupabase();
-            // Iniciar sincronización automática
-            iniciarSincronizacionAutomatica();
-        } else {
-            console.log('⚠️ Usando localStorage - Sin sincronización');
-            // Cargar datos locales si Supabase no está activo
-            cargarSuenos();
-            actualizarGaleria();
+// Función para verificar conexión con Supabase
+async function verificarSupabase() {
+    try {
+        console.log('🔍 Verificando conexión con Supabase...');
+        
+        // Verificar si las variables están configuradas
+        if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+            console.warn('⚠️ Variables de Supabase no configuradas');
+            supabaseActivo = false;
+            mostrarNotificacion('Supabase no configurado. Funcionando en modo offline.', 'warning');
+            return false;
         }
-    } else {
-        console.log('❌ Supabase no disponible - Usando localStorage');
-        // Cargar datos locales si Supabase no está disponible
-        cargarSuenos();
-        actualizarGaleria();
+        
+        // Intentar una consulta simple para verificar la conexión
+        const { data, error } = await supabase
+            .from('suenos')
+            .select('count')
+            .limit(1);
+        
+        if (error) {
+            console.error('❌ Error al conectar con Supabase:', error);
+            supabaseActivo = false;
+            mostrarNotificacion('Error de conexión con Supabase', 'error');
+            return false;
+        }
+        
+        console.log('✅ Conexión con Supabase exitosa');
+        supabaseActivo = true;
+        mostrarNotificacion('Conectado a la nube', 'success');
+        
+        // Cargar todos los datos desde Supabase
+        await cargarDatosDesdeSupabase();
+        
+        return true;
+        
+    } catch (error) {
+        console.error('❌ Error al verificar Supabase:', error);
+        supabaseActivo = false;
+        mostrarNotificacion('Error de conexión', 'error');
+        return false;
     }
 }
 
-// Función para forzar sincronización manual
-async function forzarSincronizacion() {
+// Función para recargar datos desde Supabase
+async function recargarDatos() {
     if (!supabaseActivo) {
         mostrarNotificacion('Supabase no está activo', 'warning');
         return;
     }
     
-    mostrarNotificacion('Sincronizando datos...', 'info');
     await cargarDatosDesdeSupabase();
-    mostrarNotificacion('Sincronización completada', 'success');
+    mostrarNotificacion('Datos recargados desde la nube');
 }
 
-// Exportar función para uso en consola
-window.forzarSincronizacion = forzarSincronizacion;
+window.recargarDatos = recargarDatos;
 
-// Sincronización automática en tiempo real
-let intervalSincronizacion = null;
-
-// Función para iniciar sincronización automática
-function iniciarSincronizacionAutomatica() {
-    if (!supabaseActivo) return;
-    
-    // Sincronizar cada 30 segundos
-    intervalSincronizacion = setInterval(async () => {
-        try {
-            console.log('🔄 Sincronización automática...');
-            await cargarDatosDesdeSupabase();
-        } catch (error) {
-            console.error('Error en sincronización automática:', error);
-        }
-    }, 30000); // 30 segundos
-    
-    console.log('✅ Sincronización automática iniciada (cada 30 segundos)');
-}
-
-// Función para detener sincronización automática
-function detenerSincronizacionAutomatica() {
-    if (intervalSincronizacion) {
-        clearInterval(intervalSincronizacion);
-        intervalSincronizacion = null;
-        console.log('⏹️ Sincronización automática detenida');
-    }
-}
-
-// Exportar funciones
-window.iniciarSincronizacionAutomatica = iniciarSincronizacionAutomatica;
-window.detenerSincronizacionAutomatica = detenerSincronizacionAutomatica;
-
-// Sincronizar datos bidireccional entre localStorage y Supabase
+// Cargar datos directamente desde Supabase
 async function cargarDatosDesdeSupabase() {
-    if (!supabaseActivo) return;
-    
+    if (!supabaseActivo) {
+        console.log('❌ Supabase no activo');
+        return;
+    }
+
     try {
-        console.log('🔄 Iniciando sincronización desde Supabase...');
+        console.log('🔄 Cargando datos desde Supabase...');
         
-        // Obtener datos de Supabase (fuente de verdad)
-        const suenosSupabase = await obtenerSuenosSupabase();
-        const fotosSupabase = await obtenerFotosSupabase();
+        // Obtener datos de Supabase
+        const suenosSupabase = await obtenerSuenosSupabase() || [];
+        const fotosSupabase = await obtenerFotosSupabase() || [];
         
-        console.log(`📊 Datos en Supabase: ${suenosSupabase.length} sueños, ${fotosSupabase.length} fotos`);
+        console.log(`📊 Datos cargados desde Supabase: ${suenosSupabase.length} sueños, ${fotosSupabase.length} fotos`);
         
-        // Obtener datos locales
-        const suenosLocal = JSON.parse(localStorage.getItem('suenos')) || [];
-        const fotosLocal = JSON.parse(localStorage.getItem('fotos')) || [];
-        
-        console.log(`💾 Datos locales antes: ${suenosLocal.length} sueños, ${fotosLocal.length} fotos`);
-        
-        // SIEMPRE sincronizar desde Supabase (es la fuente de verdad)
-        // Sincronizar sueños
+        // Asignar datos directamente desde Supabase
         suenos = suenosSupabase.map(s => ({
             texto: s.texto,
             fecha: formatearFecha(new Date(s.created_at)),
@@ -380,10 +343,7 @@ async function cargarDatosDesdeSupabase() {
             fechaCumplido: s.cumplido ? formatearFecha(new Date(s.created_at)) : null,
             id: s.id
         }));
-        localStorage.setItem('suenos', JSON.stringify(suenos));
-        console.log(`✅ Sueños sincronizados: ${suenos.length} elementos`);
         
-        // Sincronizar fotos
         fotos = fotosSupabase.map(f => ({
             nombre: f.nombre,
             url: f.url,
@@ -392,32 +352,26 @@ async function cargarDatosDesdeSupabase() {
             tipo: f.tipo === 'video' ? 'video' : 'imagen', // Mapear tipo correctamente
             id: f.id
         }));
-        localStorage.setItem('fotos', JSON.stringify(fotos));
-        console.log(`✅ Fotos sincronizadas: ${fotos.length} elementos`);
+        
+        console.log(`✅ Datos cargados exitosamente: ${suenos.length} sueños, ${fotos.length} fotos`);
         
         // Actualizar interfaz
         cargarSuenos();
         actualizarGaleria();
         
-        console.log(`🎉 Sincronización completada - Local ahora: ${suenos.length} sueños, ${fotos.length} fotos`);
+        mostrarNotificacion('Datos cargados desde la nube', 'success');
         
     } catch (error) {
-        console.error('❌ Error al sincronizar datos:', error);
-        mostrarNotificacion('Error al sincronizar datos', 'error');
-        
-        // Fallback: usar datos locales si falla la sincronización
-        const suenosLocal = JSON.parse(localStorage.getItem('suenos')) || [];
-        const fotosLocal = JSON.parse(localStorage.getItem('fotos')) || [];
-        suenos = suenosLocal;
-        fotos = fotosLocal;
-        cargarSuenos();
-        actualizarGaleria();
+        console.error('❌ Error al cargar datos desde Supabase:', error);
+        mostrarNotificacion('Error al cargar datos desde Supabase', 'error');
     }
 }
 
 // Función para cargar sueños
 function cargarSuenos() {
     const contenedorSuenos = document.getElementById('contenedor-suenos');
+    if (!contenedorSuenos) return;
+    
     contenedorSuenos.innerHTML = '';
     
     if (suenos.length === 0) {
@@ -457,40 +411,38 @@ async function agregarSueno() {
         return;
     }
     
-    const nuevoSueno = {
-        texto: textoSueno,
-        fecha: new Date().toLocaleDateString('es-ES'),
-        cumplido: false,
-        fechaCumplido: null
-    };
+    if (!supabaseActivo) {
+        mostrarNotificacion('Error: Supabase no está conectado', 'error');
+        return;
+    }
     
     try {
-        // Intentar guardar en Supabase primero
-        if (supabaseActivo) {
-            const resultado = await agregarSuenoSupabase(textoSueno);
-            if (resultado) {
-                nuevoSueno.id = resultado.id;
-                mostrarNotificacion('¡Sueño agregado y sincronizado!');
-            } else {
-                mostrarNotificacion('Sueño agregado localmente (sin sincronizar)', 'warning');
-            }
+        mostrarNotificacion('Guardando sueño...', 'info');
+        
+        // Guardar directamente en Supabase
+        const resultado = await agregarSuenoSupabase(textoSueno);
+        
+        if (resultado) {
+            // Agregar al array local para actualización inmediata de UI
+            const nuevoSueno = {
+                texto: textoSueno,
+                fecha: new Date().toLocaleDateString('es-ES'),
+                cumplido: false,
+                fechaCumplido: null,
+                id: resultado.id
+            };
+            
+            suenos.push(nuevoSueno);
+            document.getElementById('input-sueno').value = '';
+            cargarSuenos();
+            mostrarNotificacion('¡Sueño guardado en la nube!');
+        } else {
+            mostrarNotificacion('Error al guardar el sueño', 'error');
         }
-        
-        // Agregar al array local y guardar en localStorage
-        suenos.push(nuevoSueno);
-        localStorage.setItem('suenos', JSON.stringify(suenos));
-        
-        document.getElementById('input-sueno').value = '';
-        cargarSuenos();
         
     } catch (error) {
         console.error('Error al agregar sueño:', error);
-        // Guardar solo localmente si falla Supabase
-        suenos.push(nuevoSueno);
-        localStorage.setItem('suenos', JSON.stringify(suenos));
-        document.getElementById('input-sueno').value = '';
-        mostrarNotificacion('Sueño agregado localmente (error de sincronización)', 'warning');
-        cargarSuenos();
+        mostrarNotificacion('Error al guardar el sueño', 'error');
     }
 }
 
@@ -502,10 +454,15 @@ async function manejarSubidaArchivo(event) {
         return;
     }
     
+    if (!supabaseActivo) {
+        mostrarNotificacion('Error: Supabase no está conectado', 'error');
+        return;
+    }
+    
     const previewContainer = document.getElementById('preview-multimedia');
     previewContainer.innerHTML = '';
     
-    mostrarNotificacion('Procesando archivos...', 'info');
+    mostrarNotificacion('Subiendo archivos a la nube...', 'info');
     
     for (const archivo of archivos) {
         // Verificar que sea imagen o video
@@ -515,88 +472,62 @@ async function manejarSubidaArchivo(event) {
             continue;
         }
         
-        let nuevaFoto = {
-            tipo: archivo.type.startsWith('image/') ? 'imagen' : 'video',
-            fecha: new Date().toLocaleDateString('es-ES'),
-            nombre: archivo.name
-        };
-        
         try {
-            // Intentar subir a Supabase Storage primero
-            if (supabaseActivo) {
-                // Generar nombre único para el archivo
-                const timestamp = Date.now();
-                const fileName = `${timestamp}_${archivo.name}`;
+            // Generar nombre único para el archivo
+            const timestamp = Date.now();
+            const fileName = `${timestamp}_${archivo.name}`;
+            
+            // Subir directamente a Supabase Storage
+            const resultado = await subirFotoSupabase(archivo, fileName);
+            
+            if (resultado && resultado.url) {
+                const nuevaFoto = {
+                    tipo: archivo.type.startsWith('image/') ? 'imagen' : 'video',
+                    fecha: new Date().toLocaleDateString('es-ES'),
+                    nombre: fileName,
+                    src: resultado.url,
+                    url: resultado.url,
+                    id: resultado.id
+                };
                 
-                const resultado = await subirFotoSupabase(archivo, fileName);
-                if (resultado && resultado.url) {
-                    nuevaFoto.src = resultado.url;
-                    nuevaFoto.url = resultado.url;
-                    nuevaFoto.id = resultado.id;
-                    nuevaFoto.nombre = fileName; // Guardar el nombre con timestamp
-                    mostrarNotificacion(`${archivo.name} subido y sincronizado`);
+                // Agregar al array local para actualización inmediata de UI
+                fotos.push(nuevaFoto);
+                
+                // Mostrar preview
+                const previewItem = document.createElement('div');
+                previewItem.className = 'preview-item';
+                
+                if (nuevaFoto.tipo === 'imagen') {
+                    previewItem.innerHTML = `
+                        <img src="${nuevaFoto.src}" alt="Preview">
+                        <span class="preview-name">${archivo.name}</span>
+                    `;
                 } else {
-                    // Fallback a base64 si falla Supabase
-                    const base64 = await convertirArchivoABase64(archivo);
-                    nuevaFoto.src = base64;
-                    mostrarNotificacion(`${archivo.name} guardado localmente (sin sincronizar)`, 'warning');
+                    previewItem.innerHTML = `
+                        <video src="${nuevaFoto.src}" controls preload="metadata"></video>
+                        <span class="preview-name">${archivo.name}</span>
+                    `;
                 }
+                
+                previewContainer.appendChild(previewItem);
+                mostrarNotificacion(`${archivo.name} subido a la nube`);
+                
             } else {
-                // Usar base64 si Supabase no está disponible
-                const base64 = await convertirArchivoABase64(archivo);
-                nuevaFoto.src = base64;
+                mostrarNotificacion(`Error al subir ${archivo.name}`, 'error');
             }
-            
-            fotos.push(nuevaFoto);
-            localStorage.setItem('fotos', JSON.stringify(fotos));
-            
-            // Sincronizar inmediatamente si Supabase está activo
-            if (supabaseActivo && nuevaFoto.id) {
-                setTimeout(() => cargarDatosDesdeSupabase(), 1000);
-            }
-            
-            // Mostrar preview
-            const previewItem = document.createElement('div');
-            previewItem.className = 'preview-item';
-            
-            if (nuevaFoto.tipo === 'imagen') {
-                previewItem.innerHTML = `
-                    <img src="${nuevaFoto.src}" alt="Preview">
-                    <span class="preview-name">${archivo.name}</span>
-                `;
-            } else {
-                previewItem.innerHTML = `
-                    <video src="${nuevaFoto.src}" controls preload="metadata"></video>
-                    <span class="preview-name">${archivo.name}</span>
-                `;
-            }
-            
-            previewContainer.appendChild(previewItem);
             
         } catch (error) {
             console.error('Error al procesar archivo:', error);
-            // Fallback a base64 en caso de error
-            const base64 = await convertirArchivoABase64(archivo);
-            nuevaFoto.src = base64;
-            fotos.push(nuevaFoto);
-            localStorage.setItem('fotos', JSON.stringify(fotos));
-            mostrarNotificacion(`${archivo.name} guardado localmente (error de sincronización)`, 'warning');
+            mostrarNotificacion(`Error al subir ${archivo.name}`, 'error');
         }
     }
     
     actualizarGaleria();
-    mostrarNotificacion('Archivos procesados exitosamente!');
+    mostrarNotificacion('¡Archivos subidos exitosamente!');
 }
 
 // Función auxiliar para convertir archivo a base64
-function convertirArchivoABase64(archivo) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(archivo);
-    });
-}
+// Función convertirArchivoABase64 eliminada - ya no se usa localStorage
 
 // Función para actualizar la galería con nuevas fotos
 function actualizarGaleria() {
@@ -844,9 +775,8 @@ function eliminarFoto(index) {
                 }
             }
             
-            // Eliminar de localStorage
+            // Eliminar del array local
             fotos.splice(idx, 1);
-            localStorage.setItem('fotos', JSON.stringify(fotos));
             
             if (!supabaseActivo) {
                 mostrarNotificacion('Foto/video eliminado exitosamente.');
@@ -864,7 +794,6 @@ function eliminarFoto(index) {
             console.error('Error al eliminar foto:', error);
             // Eliminar solo localmente si falla Supabase
             fotos.splice(idx, 1);
-            localStorage.setItem('fotos', JSON.stringify(fotos));
             mostrarNotificacion('Foto/video eliminado localmente (error de sincronización)', 'warning');
             actualizarGaleria();
             cerrarModal();
@@ -900,9 +829,6 @@ async function marcarSuenoCumplido(index) {
         suenos[index].cumplido = nuevoEstado;
         suenos[index].fechaCumplido = fechaCumplido;
         
-        // Guardar en localStorage
-        localStorage.setItem('suenos', JSON.stringify(suenos));
-        
         cargarSuenos();
         
         if (!supabaseActivo) {
@@ -915,7 +841,6 @@ async function marcarSuenoCumplido(index) {
         // Actualizar solo localmente si falla Supabase
         suenos[index].cumplido = nuevoEstado;
         suenos[index].fechaCumplido = fechaCumplido;
-        localStorage.setItem('suenos', JSON.stringify(suenos));
         cargarSuenos();
         mostrarNotificacion('Estado actualizado localmente (error de sincronización)', 'warning');
     }
