@@ -440,21 +440,19 @@
             const supabaseDisponible = await esperarSupabase();
             
             // Ejecutar inicialización
-            if (typeof window.initSupabase === 'function') {
-                setTimeout(() => {
-                    console.log('🔧 Ejecutando inicialización...');
-                    const inicializado = window.initSupabase();
-                    
-                    if (inicializado && typeof window.verificarSupabase === 'function') {
-                        window.verificarSupabase();
-                    } else if (!supabaseDisponible) {
-                        console.warn('⚠️ Funcionando en modo offline - Los datos se guardarán localmente');
-                        if (typeof mostrarNotificacion === 'function') {
-                            mostrarNotificacion('Modo offline: Los datos se guardan solo en este dispositivo', 'warning');
-                        }
+            setTimeout(() => {
+                console.log('🔧 Ejecutando inicialización...');
+                
+                // Usar la función verificarSupabase del script.js que maneja todo
+                if (typeof verificarSupabase === 'function') {
+                    verificarSupabase();
+                } else if (!supabaseDisponible) {
+                    console.warn('⚠️ Funcionando en modo offline - Los datos se guardarán localmente');
+                    if (typeof mostrarNotificacion === 'function') {
+                        mostrarNotificacion('Modo offline: Los datos se guardan solo en este dispositivo', 'warning');
                     }
-                }, 500);
-            }
+                }
+            }, 500);
         });
     </script>
     

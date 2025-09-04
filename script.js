@@ -266,67 +266,71 @@ let supabaseActivo = false;
 // Función para verificar conexión con Supabase
 async function verificarSupabase() {
     try {
-        console.log('🔍 Verificando conexión con Supabase...');
+        console.log('🔍 Verificando conexión con Supabase desde script.js...');
         
-        // Inicializar Supabase usando la función del config
-        if (typeof initSupabase === 'function') {
-            const inicializado = initSupabase();
-            if (!inicializado) {
-                console.warn('⚠️ Supabase no pudo inicializarse');
-                supabaseActivo = false;
-                mostrarNotificacion('Supabase no configurado. Funcionando en modo offline.', 'warning');
-                return false;
+        // Usar la función de verificación del config
+        if (typeof window.verificarSupabaseConfig === 'function') {
+            const resultado = await window.verificarSupabaseConfig();
+            supabaseActivo = resultado;
+            
+            if (resultado) {
+                console.log('✅ Supabase verificado exitosamente');
+                mostrarNotificacion('Conectado a la nube', 'success');
+                
+                // Cargar todos los datos desde Supabase
+                await cargarDatosDesdeSupabase();
+                
+                // Intentar sincronizar datos pendientes
+                await sincronizarSuenosPendientes();
+                await sincronizarFotosPendientes();
+                
+                // Iniciar sincronización automática
+                iniciarSincronizacionAutomatica();
+            } else {
+                console.warn('⚠️ Supabase no disponible, funcionando en modo offline');
+                mostrarNotificacion('Funcionando en modo offline', 'warning');
+                // Cargar datos locales
+                cargarSuenosLocales();
+                cargarFotosLocales();
             }
+            
+            return resultado;
         } else {
-            console.error('❌ Función initSupabase no encontrada');
+            console.error('❌ Función verificarSupabaseConfig no encontrada en window');
             supabaseActivo = false;
             mostrarNotificacion('Error de configuración de Supabase', 'error');
+            // Cargar datos locales como fallback
+            cargarSuenosLocales();
+            cargarFotosLocales();
             return false;
         }
-        
-        // Verificar que supabase esté disponible globalmente
-        const clienteSupabase = window.getSupabaseClient ? window.getSupabaseClient() : null;
-        if (!clienteSupabase) {
-            console.error('❌ Cliente de Supabase no disponible');
-            supabaseActivo = false;
-            mostrarNotificacion('Error: Cliente de Supabase no disponible', 'error');
-            return false;
-        }
-        
-        // Intentar una consulta simple para verificar la conexión
-        const { data, error } = await clienteSupabase
-            .from('suenos')
-            .select('*')
-            .limit(1);
-        
-        if (error) {
-            console.error('❌ Error al conectar con Supabase:', error);
-            supabaseActivo = false;
-            mostrarNotificacion('Error de conexión con Supabase', 'error');
-            return false;
-        }
-        
-        console.log('✅ Conexión con Supabase exitosa');
-        supabaseActivo = true;
-        mostrarNotificacion('Conectado a la nube', 'success');
-        
-        // Cargar todos los datos desde Supabase
-        await cargarDatosDesdeSupabase();
-        
-        // Intentar sincronizar datos pendientes
-        await sincronizarSuenosPendientes();
-        await sincronizarFotosPendientes();
-        
-        // Iniciar sincronización automática
-        iniciarSincronizacionAutomatica();
-        
-        return true;
         
     } catch (error) {
         console.error('❌ Error al verificar Supabase:', error);
         supabaseActivo = false;
         mostrarNotificacion('Error de conexión', 'error');
+        // Cargar datos locales como fallback
+        cargarSuenosLocales();
+        cargarFotosLocales();
         return false;
+    }
+}
+
+// Función para cargar sueños desde localStorage
+function cargarSuenosLocales() {
+    try {
+        const suenosGuardados = localStorage.getItem('suenos');
+        if (suenosGuardados) {
+            suenos = JSON.parse(suenosGuardados);
+            console.log(`📱 Cargados ${suenos.length} sueños desde localStorage`);
+        } else {
+            suenos = [];
+        }
+        cargarSuenos();
+    } catch (error) {
+        console.error('Error al cargar sueños locales:', error);
+        suenos = [];
+        cargarSuenos();
     }
 }
 

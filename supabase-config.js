@@ -413,11 +413,15 @@ async function verificarSupabase() {
         
         // Cargar datos existentes
         console.log('🔄 Cargando datos existentes...');
-        await cargarDatos();
+        await cargarDatosDesdeSupabase();
         
-        // Iniciar sincronización automática
+        // Iniciar sincronización automática si está disponible
         console.log('🔄 Iniciando sincronización automática...');
-        iniciarSincronizacionAutomatica();
+        if (typeof window.iniciarSincronizacionAutomatica === 'function') {
+            window.iniciarSincronizacionAutomatica();
+        } else {
+            console.log('⚠️ Función de sincronización automática no disponible aún');
+        }
         
         console.log('✅ Verificación de Supabase completada exitosamente');
         return true;
@@ -446,7 +450,7 @@ window.subirFotoSupabase = subirFotoSupabase;
 window.obtenerFotosSupabase = obtenerFotosSupabase;
 window.eliminarFotoSupabase = eliminarFotoSupabase;
 window.migrarDatosASupabase = migrarDatosASupabase;
-window.verificarSupabase = verificarSupabase;
+window.verificarSupabaseConfig = verificarSupabase;
 
 // Hacer supabase disponible globalmente
 Object.defineProperty(window, 'supabaseClient', {
