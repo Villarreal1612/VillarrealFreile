@@ -100,7 +100,11 @@ async function agregarSuenoSupabase(texto) {
         const { data, error } = await supabase
             .from('suenos')
             .insert([
-                { texto: texto, cumplido: false }
+                { 
+                    texto: texto, 
+                    cumplido: false,
+                    fecha: new Date().toISOString()
+                }
             ])
             .select();
         
@@ -271,8 +275,9 @@ async function subirFotoSupabase(file, fileName) {
             .from('fotos')
             .insert([
                 { 
-                    text: fileName, 
-                    url: urlData.publicUrl
+                    nombre: fileName, 
+                    url: urlData.publicUrl,
+                    tipo: tipoArchivo
                 }
             ])
             .select();

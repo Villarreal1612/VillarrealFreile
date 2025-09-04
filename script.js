@@ -418,17 +418,18 @@ async function verificarCambios() {
             cambiosDetectados = true;
         }
         
-        // Verificar si hay datos más recientes
+        // Verificar si hay datos más recientes (con margen de 5 segundos para evitar bucles)
+        const margenTiempo = 5000; // 5 segundos
         if (suenosData && suenosData.length > 0) {
             const ultimoSueno = new Date(suenosData[0].created_at);
-            if (ultimoSueno > ultimaActualizacion) {
+            if (ultimoSueno.getTime() > (ultimaActualizacion.getTime() + margenTiempo)) {
                 cambiosDetectados = true;
             }
         }
         
         if (fotosData && fotosData.length > 0) {
             const ultimaFoto = new Date(fotosData[0].created_at);
-            if (ultimaFoto > ultimaActualizacion) {
+            if (ultimaFoto.getTime() > (ultimaActualizacion.getTime() + margenTiempo)) {
                 cambiosDetectados = true;
             }
         }
