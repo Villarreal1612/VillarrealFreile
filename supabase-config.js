@@ -159,6 +159,29 @@ async function actualizarSuenoSupabase(id, cumplido) {
     return await marcarSuenoCumplidoSupabase(id, cumplido);
 }
 
+// Función para eliminar sueño
+async function eliminarSuenoSupabase(id) {
+    try {
+        console.log('🗑️ Eliminando sueño con ID:', id);
+        const { data, error } = await supabase
+            .from('suenos')
+            .delete()
+            .eq('id', id)
+            .select();
+        
+        if (error) {
+            console.error('❌ Error al eliminar sueño:', error);
+            throw error;
+        }
+        
+        console.log('✅ Sueño eliminado exitosamente:', data[0]);
+        return data[0];
+    } catch (error) {
+        console.error('❌ Error al eliminar sueño:', error);
+        throw error;
+    }
+}
+
 // Funciones para manejar fotos
 async function verificarYCrearBucket() {
     try {
@@ -248,9 +271,8 @@ async function subirFotoSupabase(file, fileName) {
             .from('fotos')
             .insert([
                 { 
-                    nombre: fileName, 
-                    url: urlData.publicUrl,
-                    tipo: file.type.startsWith('video/') ? 'video' : 'imagen'
+                    text: fileName, 
+                    url: urlData.publicUrl
                 }
             ])
             .select();
@@ -418,6 +440,7 @@ window.agregarSuenoSupabase = agregarSuenoSupabase;
 window.obtenerSuenosSupabase = obtenerSuenosSupabase;
 window.marcarSuenoCumplidoSupabase = marcarSuenoCumplidoSupabase;
 window.actualizarSuenoSupabase = actualizarSuenoSupabase;
+window.eliminarSuenoSupabase = eliminarSuenoSupabase;
 window.verificarYCrearBucket = verificarYCrearBucket;
 window.subirFotoSupabase = subirFotoSupabase;
 window.obtenerFotosSupabase = obtenerFotosSupabase;

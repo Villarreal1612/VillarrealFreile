@@ -619,13 +619,88 @@ function cargarSuenos() {
                 <span class="fecha-sueno">${fechaMostrar}</span>
             </div>
             <p class="texto-sueno">${sueno.texto}</p>
-            <button class="boton-cumplir ${sueno.cumplido ? 'cumplido' : ''}" 
-                    onclick="marcarSuenoCumplido(${index})">
-                ${sueno.cumplido ? 'Desmarcar' : 'Cumplir'}
-            </button>
+            <div class="sueno-botones">
+                <button class="boton-cumplir ${sueno.cumplido ? 'cumplido' : ''}" 
+                        onclick="marcarSuenoCumplido(${index})">
+                    ${sueno.cumplido ? 'Desmarcar' : 'Cumplir'}
+                </button>
+                <button class="boton-eliminar" onclick="eliminarSueno(${index})">
+                    🗑️ Eliminar
+                </button>
+            </div>
         `;
         contenedorSuenos.appendChild(contenedorSueno);
     });
+}
+
+// Función para eliminar un sueño
+function eliminarSueno(index) {
+    // Crear modal de confirmación personalizado
+    const modalConfirmacion = document.createElement('div');
+    modalConfirmacion.className = 'modal-confirmacion';
+    modalConfirmacion.innerHTML = `
+        <div class="confirmacion-contenido">
+            <h3>¿Estás seguro de que quieres eliminar este sueño?</h3>
+            <p class="sueno-preview">"${suenos[index].texto.substring(0, 100)}${suenos[index].texto.length > 100 ? '...' : ''}"</p>
+            <div class="confirmacion-botones">
+                <button class="boton-cancelar" onclick="cerrarConfirmacionSueno()">Cancelar</button>
+                <button class="boton-aceptar" onclick="confirmarEliminacionSueno(${index})">Eliminar</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modalConfirmacion);
+    
+    // Funciones para manejar la confirmación
+    window.cerrarConfirmacionSueno = function() {
+        document.body.removeChild(modalConfirmacion);
+    };
+    
+    window.confirmarEliminacionSueno = async function(idx) {
+        try {
+            // Intentar eliminar de Supabase primero
+            if (supabaseActivo && suenos[idx].id) {
+                const resultado = await eliminarSuenoSupabase(suenos[idx].id);
+                if (resultado) {
+                    mostrarNotificacion('✅ Sueño eliminado y sincronizado', 'success');
+                } else {
+                    mostrarNotificacion('⚠️ Sueño eliminado localmente (sin sincronizar)', 'warning');
+                }
+            }
+            
+            // Eliminar del array local
+            suenos.splice(idx, 1);
+            
+            if (!supabaseActivo) {
+                mostrarNotificacion('💾 Sueño eliminado exitosamente', 'success');
+            }
+            
+            cargarSuenos();
+            
+            // Actualizar contadores para sincronización
+            contadorSuenos = suenos.length;
+            ultimaActualizacion = new Date();
+            
+            // Sincronizar inmediatamente después de eliminar
+            if (supabaseActivo) {
+                setTimeout(() => cargarDatosDesdeSupabase(), 1000);
+            }
+            
+        } catch (error) {
+            console.error('Error al eliminar sueño:', error);
+            // Eliminar solo localmente si falla Supabase
+            suenos.splice(idx, 1);
+            mostrarNotificacion('⚠️ Sueño eliminado localmente (error de sincronización)', 'warning');
+            cargarSuenos();
+            
+            // Sincronizar para verificar estado actual
+            if (supabaseActivo) {
+                setTimeout(() => cargarDatosDesdeSupabase(), 1000);
+            }
+        }
+        
+        document.body.removeChild(modalConfirmacion);
+    };
 }
 
 // Función para agregar un nuevo sueño

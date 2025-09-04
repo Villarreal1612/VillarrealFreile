@@ -1126,6 +1126,54 @@ body {
   transform: translateY(-1px);
 }
 
+/* Contenedor de botones para sueños */
+.sueno-botones {
+  display: flex;
+  gap: 10px;
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  right: 10px;
+  justify-content: space-between;
+}
+
+/* Botón de eliminar sueño */
+.sueno-botones .boton-eliminar {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  font-family: "Delius", cursive;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sueno-botones .boton-eliminar:hover {
+  background: linear-gradient(135deg, #ff5252, #d32f2f);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+}
+
+/* Preview del sueño en modal de confirmación */
+.sueno-preview {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 15px;
+  border-radius: 10px;
+  margin: 15px 0;
+  font-style: italic;
+  color: #e2e8f0;
+  border-left: 4px solid #d1548f;
+  text-align: left;
+  font-family: "Delius", cursive;
+  line-height: 1.4;
+}
+
 /* Modal de confirmación personalizado */
 .modal-confirmacion {
   position: fixed;
