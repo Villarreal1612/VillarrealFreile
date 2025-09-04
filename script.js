@@ -510,6 +510,16 @@ window.sincronizarManualmente = sincronizarManualmente;
 window.iniciarSincronizacionAutomatica = iniciarSincronizacionAutomatica;
 window.detenerSincronizacionAutomatica = detenerSincronizacionAutomatica;
 
+// Exportar variable de estado
+Object.defineProperty(window, 'supabaseActivo', {
+    get: function() {
+        return supabaseActivo;
+    },
+    set: function(value) {
+        supabaseActivo = value;
+    }
+});
+
 // Cargar datos directamente desde Supabase
 async function cargarDatosDesdeSupabase() {
     if (!supabaseActivo) {

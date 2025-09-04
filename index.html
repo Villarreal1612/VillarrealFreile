@@ -6,16 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recuerdos</title>
     <link rel="stylesheet" href="styles.css">
-    
-<script>
-  // Variables de entorno inyectadas en build time
-  window.VITE_SUPABASE_URL = 'https://ggzyqssptaonmwxoaedw.supabase.co';
-  window.VITE_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdnenlxc3NwdGFvbm13eG9hZWR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4NDc4MjYsImV4cCI6MjA3MjQyMzgyNn0.u_EpXzGNFqD_M_DQ2mnofkqCoSdzDjXv09-norDHpKo';
-  console.log('🚀 Variables de entorno inyectadas:', {
-    url: window.VITE_SUPABASE_URL,
-    keyConfigured: !!window.VITE_SUPABASE_ANON_KEY
-  });
-</script>
+    <script>
+        // Variables de entorno inyectadas en build time
+        window.VITE_SUPABASE_URL = 'https://ggzyqssptaonmwxoaedw.supabase.co';
+        window.VITE_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdnenlxc3NwdGFvbm13eG9hZWR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4NDc4MjYsImV4cCI6MjA3MjQyMzgyNn0.u_EpXzGNFqD_M_DQ2mnofkqCoSdzDjXv09-norDHpKo';
+        console.log('🚀 Variables de entorno inyectadas:', {
+            url: window.VITE_SUPABASE_URL,
+            keyConfigured: !!window.VITE_SUPABASE_ANON_KEY
+        });
+    </script>
 </head>
 
 <body>
@@ -142,9 +141,12 @@
             <button class="boton-contador" onclick="sincronizarManualmente()" title="Sincronizar datos manualmente">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" color="#ffffff"
                     fill="none">
-                    <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="1.5"/>
-                    <path d="M12 8V12L15 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M8 4L10 2M16 4L14 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    <path
+                        d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
+                        stroke="currentColor" stroke-width="1.5" />
+                    <path d="M12 8V12L15 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    <path d="M8 4L10 2M16 4L14 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
                 </svg>
                 Sincronizar
             </button>
@@ -390,12 +392,12 @@
         function cargarSupabaseSDK() {
             return new Promise((resolve, reject) => {
                 console.log('🔄 Cargando Supabase SDK...');
-                
+
                 const script = document.createElement('script');
                 script.src = 'https://unpkg.com/@supabase/supabase-js@2';
                 script.async = true;
-                
-                script.onload = function() {
+
+                script.onload = function () {
                     console.log('✅ Script de Supabase cargado desde CDN');
                     // Verificar que el objeto esté disponible
                     if (window.supabase && typeof window.supabase.createClient === 'function') {
@@ -406,8 +408,8 @@
                         reject(new Error('Supabase SDK no funcional'));
                     }
                 };
-                
-                script.onerror = function(error) {
+
+                script.onerror = function (error) {
                     console.error('❌ Error al cargar script de Supabase desde CDN:', error);
                     console.error('❌ Posibles causas:');
                     console.error('   - Sin conexión a internet');
@@ -416,9 +418,9 @@
                     console.error('   - Políticas de red corporativa');
                     reject(error);
                 };
-                
+
                 document.head.appendChild(script);
-                
+
                 // Timeout de 15 segundos
                 setTimeout(() => {
                     if (!window.supabase) {
@@ -428,7 +430,7 @@
                 }, 15000);
             });
         }
-        
+
         // Función para esperar a que Supabase esté disponible
         function esperarSupabase() {
             return new Promise(async (resolve) => {
@@ -442,16 +444,16 @@
                 }
             });
         }
-        
+
         // Inicializar cuando la página esté lista
-        document.addEventListener('DOMContentLoaded', async function() {
+        document.addEventListener('DOMContentLoaded', async function () {
             console.log('🚀 Iniciando carga de dependencias...');
             const supabaseDisponible = await esperarSupabase();
-            
+
             // Ejecutar inicialización
             setTimeout(() => {
                 console.log('🔧 Ejecutando inicialización...');
-                
+
                 // Usar la función verificarSupabase del script.js que maneja todo
                 if (typeof verificarSupabase === 'function') {
                     verificarSupabase();
@@ -464,7 +466,7 @@
             }, 500);
         });
     </script>
-    
+
     <!-- Supabase Configuration -->
     <script src="supabase-config.js"></script>
     <script src="script.js"></script>

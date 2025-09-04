@@ -1,4 +1,3 @@
-// Configuración de Supabase
 // Función para obtener variables de entorno en diferentes contextos
 function getEnvVar(varName, defaultValue) {
     // Intentar obtener de variables de entorno del proceso (Node.js)
@@ -33,9 +32,24 @@ console.log('🔧 Fuente URL:', getEnvVar('VITE_SUPABASE_URL') ? 'Variable de en
 console.log('🔧 Fuente Key:', getEnvVar('VITE_SUPABASE_ANON_KEY') ? 'Variable de entorno' : 'Valor por defecto');
 
 let supabase = null;
+let inicializandoSupabase = false;
 
 // Función para inicializar Supabase
 function initSupabase() {
+    // Evitar múltiples inicializaciones simultáneas
+    if (inicializandoSupabase) {
+        console.log('⚠️ Inicialización de Supabase ya en progreso, saltando...');
+        return supabase !== null;
+    }
+    
+    // Si ya está inicializado, no reinicializar
+    if (supabase !== null) {
+        console.log('✅ Supabase ya está inicializado');
+        return true;
+    }
+    
+    inicializandoSupabase = true;
+    
     try {
         console.log('🔧 Iniciando configuración de Supabase...');
         console.log('🔍 URL:', SUPABASE_URL);
@@ -84,6 +98,8 @@ function initSupabase() {
         console.info('📝 Funcionando en modo offline. Los datos se guardan localmente.');
         mostrarNotificacion('Error de conexión - Modo offline activado', 'warning');
         return false;
+    } finally {
+        inicializandoSupabase = false;
     }
 }
 
@@ -268,6 +284,9 @@ async function subirFotoSupabase(file, fileName) {
             .from('recuerdos-media')
             .getPublicUrl(fileName);
         console.log('🔗 URL pública obtenida:', urlData.publicUrl);
+        
+        // Determinar tipo de archivo
+        const tipoArchivo = file.type.startsWith('image/') ? 'imagen' : 'video';
         
         // Guardar referencia en la base de datos
         console.log('💾 Insertando referencia en tabla fotos...');
