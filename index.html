@@ -6,7 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recuerdos</title>
     <link rel="stylesheet" href="styles.css">
-    <!-- ENV_VARS_PLACEHOLDER -->
+    
+<script>
+  // Variables de entorno inyectadas en build time
+  window.VITE_SUPABASE_URL = 'https://ggzyqssptaonmwxoaedw.supabase.co';
+  window.VITE_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdnenlxc3NwdGFvbm13eG9hZWR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY4NDc4MjYsImV4cCI6MjA3MjQyMzgyNn0.u_EpXzGNFqD_M_DQ2mnofkqCoSdzDjXv09-norDHpKo';
+  console.log('🚀 Variables de entorno inyectadas:', {
+    url: window.VITE_SUPABASE_URL,
+    keyConfigured: !!window.VITE_SUPABASE_ANON_KEY
+  });
+</script>
 </head>
 
 <body>
